@@ -33,11 +33,13 @@ env = UrdfEnv(
     robots=robots,
     render=True,
 )
+
+# Set it slightly below 90 to prevent rendering issues
+env.reconfigure_camera(5, 0, -89.9, (0, 0, 0))
+
 env.add_goal(goal1)
 
 world_plan.insert_into(env)
-# add_simple_maze(env)
-
 
 # %%
 sensor = FullSensor(["position"], ["position", "size"], variance=0.0)
