@@ -59,6 +59,10 @@ Install the necessary packages with:
 pip install -r requirements.txt
 ```
 
+For development the package can be installed as editable:
+```bash
+pip install -e .
+```
 
 ## Running the demo
 _#TODO_: demo instructions
