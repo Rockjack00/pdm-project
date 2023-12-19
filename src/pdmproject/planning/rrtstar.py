@@ -34,7 +34,6 @@ class RRTStar:
         self.start = Node(*start)
         self.goal = Node(*goal)
 
-
         self.obstacle_list = obstacle_list or []
         #search_area shape is (min_x, max_x, min_y, max_y, ....., max_theta5)
         self.search_area = search_area
@@ -43,7 +42,7 @@ class RRTStar:
         self.radius = radius
         self.node_list = [self.start]
         self.sample_function = sample_function or self._default_sample_function
-        self.collision_checker = collision_checker or self._default_collision_checker
+        self.collision_checker = collision_checker or self._new_collision_checker
 
 
     def _default_sample_function(self):
@@ -53,7 +52,7 @@ class RRTStar:
             Node: randomly sampled node
         """
         #set to how many times we want to sample goal node
-        if np.random.rand() < 0.8:
+        if np.random.rand() < 0.85:
             
             return Node(np.random.uniform(self.search_area[0], self.search_area[1]), 
                         np.random.uniform(self.search_area[2], self.search_area[3]),
@@ -65,7 +64,6 @@ class RRTStar:
 
         else:
             return self.goal
-            return Node(self.goal.q1, self.goal.q2, self.goal.q3, self.goal.q4, self.goal.q5, self.goal.q6, self.goal.q7)
         
 
     def _default_collision_checker(self, node):
@@ -82,6 +80,16 @@ class RRTStar:
             if distance < self.radius:
                 return True  # Collision
         return False
+     
+    
+    @staticmethod
+    def external_collision_checker():
+        pass
+
+
+    def _new_collision_checker(self, node):
+        return RRTStar.external_collision_checker(node.get_7d_point())
+
 
 
     @staticmethod
@@ -219,7 +227,6 @@ class RRTStar:
 
     def plan(self):
         for i in range(self.max_iter):
-            print(i)
 
             new_node = self.sample_function()
             
@@ -246,8 +253,16 @@ class RRTStar:
 
             min_cost_node = near_nodes[sorted_indices[0]]
 
+            if min_cost_node == self.goal:
+                if len(near_nodes) < 1:
+                    continue
+                min_cost_node = near_nodes[sorted_indices[1]]
+
             new_node.parent = min_cost_node
             new_node.cost = min_cost_node.cost + RRTStar.calculate_distance(new_node, min_cost_node)
+
+            if new_node == self.goal:
+                continue
 
             self.node_list.append(new_node)
             self.rewire(new_node)
@@ -259,7 +274,7 @@ class RRTStar:
     def generate_path(self):
         #path = [(self.goal.q1, self.goal.q2, self.goal.q3, self.goal.q4, self.goal.q5, self.goal.q6, self.goal.q7)]
         path = []
-        current_node = self.node_list[-1]
+        current_node = self.goal
 
         while current_node.parent is not None:
             path.append((current_node.q1, current_node.q2, current_node.q3, current_node.q4, current_node.q5, current_node.q6, current_node.q7))
@@ -307,28 +322,20 @@ def plot_rrt_star(rrt_star, path=[]):
 
 
 
+if __name__ == "__main__":
+    start_point = (-4, 0, 0, 0, 0, 0, 0)
+    goal_point = (4, 0, 0, 0, 0, 0 ,0)
 
-start_point = (-4, 0, 0, 0, 0, 0, 0)
-goal_point = (4, 0, 0, 0, 0, 0 ,0)
+    obstacles = []  # Coordinates of obstacles
 
-obstacles = []  # Coordinates of obstacles
+    search_area = (-5, 5, 
+                -3, 3, 
+                0, 0, 
+                0, 0, 
+                0, 0, 
+                0, 0, 
+                0, 0)
 
-# search_area = (0, 100, 
-#                0, 100, 
-#                0, 2 * np.pi, 
-#                -0.5 * np.pi, 0.5 * np.pi, 
-#                -0.5 * np.pi, 0.5 * np.pi,
-#                -0.5 * np.pi, 0.5 * np.pi, 
-#                0, 2 * np.pi)
-
-search_area = (-5, 5, 
-               -3, 3, 
-               0, 0, 
-               0, 0, 
-               0, 0, 
-               0, 0, 
-               0, 0)
-
-rrt_star = RRTStar(start=start_point, goal=goal_point, search_area=search_area, step_size=0.1, max_iter=1000, radius=1)
-path = rrt_star.plan()
-plot_rrt_star(rrt_star, path)
+    rrt_star = RRTStar(start=start_point, goal=goal_point, search_area=search_area, step_size=0.1, max_iter=500, radius=1)
+    path = rrt_star.plan()
+    plot_rrt_star(rrt_star, path)
