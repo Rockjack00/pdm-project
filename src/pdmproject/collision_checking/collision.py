@@ -13,6 +13,18 @@ class CollisionCheckRobot(GenericUrdfReacher):
         mode = "vel"
         super().__init__(urdf, mode)
 
+    def set_pose(self, pose):
+        for i in range(self._n):
+            p.resetJointState(
+                self._robot,
+                self._robot_joints[i],
+                pose[i],
+                targetVelocity=0,
+            )
+
+        p.performCollisionDetection()
+
+
     def check_if_colliding(self, pose, verbose=False)-> bool: 
         """ Check if given pose is colliding with the environment.
 
