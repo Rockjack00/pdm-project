@@ -1,6 +1,7 @@
 from dataclasses import KW_ONLY, InitVar, dataclass, field
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 from mpscenes.obstacles.box_obstacle import BoxObstacle
 from pybullet_utils.transformations import quaternion_from_euler
@@ -17,6 +18,8 @@ class Wall:
     simulation_name: InitVar[Optional[str]] = None
     _registered: bool = field(init=False, default=False)
     _name: Optional[str] = field(init=False, default=None)
+    _content_dict: Optional[dict] = field(init=False, default=None)
+    _content_dicts: Optional[list[dict]] = field(init=False, default=None)
 
     DEFAULT_NAME_TEMPLATE: ClassVar[str] = "wall-"
 
@@ -24,11 +27,14 @@ class Wall:
         if simulation_name is not None:
             self._name = simulation_name
 
-    def _generate_wall_segments(self) -> list[BoxObstacle]:
-        if not self.is_registered:
-            raise RuntimeWarning(
-                "The wall is not registered yet, if no simulation_name was provided the name will be None"
-            )
+    def _generate_content_dicts(self, regenerate: bool = False):
+        if self._content_dicts is None or regenerate:
+            self._generate_content_dict()
+        self._content_dicts = [self._content_dict]
+
+    def _generate_content_dict(self, regenerate: bool = False):
+        if not (self._content_dict is None or regenerate):
+            return None
 
         start_vec = np.array(self.start_point)
         end_vec = np.array(self.end_point)
@@ -61,10 +67,18 @@ class Wall:
 
         self._content_dict = content_dict
 
+    def _generate_wall_segments(self, regenerate: bool = False) -> list[BoxObstacle]:
+        if not self.is_registered:
+            raise RuntimeWarning(
+                "The wall is not registered yet, if no simulation_name was provided the name will be None"
+            )
+
+        self._generate_content_dict(regenerate)
+
         return [
             BoxObstacle(
                 name=self._name,
-                content_dict=content_dict,
+                content_dict=self._content_dict,
             )
         ]
 
@@ -103,3 +117,25 @@ class Wall:
     def is_registered(self) -> bool:
         """If the wall has been registered yet"""
         return self._registered
+
+    @property
+    def content_dict(self) -> dict[str, Any]:
+        self._generate_content_dict()
+        return self._content_dict
+    
+    @property
+    def content_dicts(self) -> list[dict[str, Any]]:
+        self._generate_content_dicts()
+        return self._content_dicts
+
+    @property
+    def color(self) -> list[float]:
+        self._generate_content_dict()
+        return self.content_dict["rgba"]
+
+    def _plot2d(self, ax: plt.Axes):
+        ax.plot(
+            [self.start_point[0], self.end_point[0]],
+            [self.start_point[1], self.end_point[1]],
+            color=self.color,
+        )

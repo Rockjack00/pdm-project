@@ -3,6 +3,7 @@ from dataclasses import KW_ONLY, dataclass, field
 from typing import ClassVar, Optional
 
 import numpy as np
+from matplotlib.axes import Axes
 from mpscenes.obstacles.box_obstacle import BoxObstacle
 from pybullet_utils.transformations import quaternion_from_euler
 
@@ -15,16 +16,55 @@ class GateWall(Wall):
     _: KW_ONLY
     gate_height: float = 1.5
     gate_width: float = 1.0
-    _content_dicts: Optional[list[dict]] = field(init=False, default=None)
 
     DEFAULT_NAME_TEMPLATE: ClassVar[str] = "gatewall-"
 
-    def _generate_wall_segments(self) -> list[BoxObstacle]:
-        if not self.is_registered:
-            raise RuntimeWarning(
-                "The wall is not registered yet, if no simulation_name was provided the name will be None"
+    def _generate_content_dicts(self, regenerate: bool = False):
+        if self._content_dict is None or regenerate:
+            self._generate_content_dict()
+
+        if self._content_dicts is None or regenerate:
+            gate_vec = np.array(self.gate_point)
+            end_vec = np.array(self.end_point)
+
+            position_gate_top: list[float] = list(self.gate_point)
+            position_gate_top.append(
+                (self.wall_height - self.gate_height) / 2.0 + self.gate_height
             )
 
+            gate_end_vec = gate_vec - end_vec
+            gate_end_dist = np.linalg.norm(gate_end_vec)
+
+            length_end_gate = gate_end_dist - self.gate_width / 2
+            wall_center_end_gate_vec = (
+                length_end_gate * (gate_end_vec) / gate_end_dist / 2 + end_vec
+            )
+
+            position_end_gate: list[float] = wall_center_end_gate_vec.tolist()
+            position_end_gate.append(self.wall_height / 2.0)
+
+            content_dict_start_gate = self._content_dict
+
+            content_dict_top_gate = copy.deepcopy(content_dict_start_gate)
+            content_dict_top_gate["geometry"]["position"] = position_gate_top
+            content_dict_top_gate["geometry"]["length"] = self.gate_width
+            content_dict_top_gate["geometry"]["height"] = (
+                self.wall_height - self.gate_height
+            )
+
+            content_dict_end_gate = copy.deepcopy(content_dict_start_gate)
+            content_dict_end_gate["geometry"]["position"] = position_end_gate
+            content_dict_end_gate["geometry"]["length"] = float(length_end_gate)
+
+            self._content_dicts = [
+                content_dict_start_gate,
+                content_dict_top_gate,
+                content_dict_end_gate,
+            ]
+
+    def _generate_content_dict(self, regenerate: bool = False):
+        if not (self._content_dict is None or regenerate):
+            return None
         start_vec = np.array(self.start_point)
         gate_vec = np.array(self.gate_point)
         end_vec = np.array(self.end_point)
@@ -91,22 +131,19 @@ class GateWall(Wall):
         if "rgba" not in content_dict_start_gate:
             content_dict_start_gate["rgba"] = [0.5, 0.5, 0.5, 1.0]
 
-        content_dict_top_gate = copy.deepcopy(content_dict_start_gate)
-        content_dict_top_gate["geometry"]["position"] = position_gate_top
-        content_dict_top_gate["geometry"]["length"] = self.gate_width
-        content_dict_top_gate["geometry"]["height"] = (
-            self.wall_height - self.gate_height
-        )
+        self._content_dict = content_dict_start_gate
 
-        content_dict_end_gate = copy.deepcopy(content_dict_start_gate)
-        content_dict_end_gate["geometry"]["position"] = position_end_gate
-        content_dict_end_gate["geometry"]["length"] = float(length_end_gate)
+    def _generate_wall_segments(self, regenerate: bool = False) -> list[BoxObstacle]:
+        if not self.is_registered:
+            raise RuntimeWarning(
+                "The wall is not registered yet, if no simulation_name was provided the name will be None"
+            )
 
-        self._content_dicts = [
-            content_dict_start_gate,
-            content_dict_top_gate,
-            content_dict_end_gate,
-        ]
+        self._generate_content_dicts(regenerate=regenerate)
+
+        content_dict_start_gate = self._content_dicts[0]
+        content_dict_top_gate = self._content_dicts[1]
+        content_dict_end_gate = self._content_dicts[2]
 
         return [
             BoxObstacle(
@@ -122,3 +159,35 @@ class GateWall(Wall):
                 content_dict=content_dict_end_gate,
             ),
         ]
+
+    def _plot2d(self, ax: Axes):
+        start_vec = np.array(self.start_point)
+        end_vec = np.array(self.end_point)
+        wall_vec = end_vec - start_vec
+        total_wall_length = np.linalg.norm(wall_vec)
+
+        unit_wall_vec = wall_vec / total_wall_length
+
+        gate_correction = unit_wall_vec / 2 * self.gate_width
+
+        # START
+        ax.plot(
+            [self.start_point[0], self.gate_point[0] - gate_correction[0]],
+            [self.start_point[1], self.gate_point[1] - gate_correction[1]],
+            color=self.color,
+        )
+
+        # Gate
+        ax.plot(
+            [self.gate_point[0] - gate_correction[0], self.gate_point[0] + gate_correction[0]],
+            [self.gate_point[1] - gate_correction[1], self.gate_point[1] + gate_correction[1]],
+            color=self.color,
+            linestyle=":"
+        )
+
+        # END
+        ax.plot(
+            [self.gate_point[0] + gate_correction[0], self.end_point[0]],
+            [self.gate_point[1] + gate_correction[1], self.end_point[1]],
+            color=self.color,
+        )
