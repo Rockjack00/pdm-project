@@ -73,6 +73,8 @@ class GateWall(Wall):
         total_wall_length = np.linalg.norm(wall_vec)
         # wall_center = wall_vec / 2 + start_vec
 
+        self._wall_length = total_wall_length
+
         gate_start_vec = gate_vec - start_vec
         gate_start_dist = np.linalg.norm(gate_start_vec)
 

@@ -14,7 +14,7 @@ from pdmproject.environment.wall import Wall
 class PDMWorldCreator:
     walls: InitVar[Optional[Iterable[Wall]]] = None
     _walls: list[Wall] = field(init=False, default_factory=list)
-    _wall_type_counts: defaultdict[type(Wall), int] = (field(init=False),)
+    _wall_type_counts: defaultdict[type(Wall), int] = field(init=False)
     _wall_name_set: set[str] = field(init=False, default_factory=set)
 
     def __post_init__(self, walls: Optional[Iterable[Wall]]) -> None:

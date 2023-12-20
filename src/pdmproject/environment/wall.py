@@ -1,4 +1,5 @@
 from dataclasses import KW_ONLY, InitVar, dataclass, field
+from math import nan
 from typing import Any, ClassVar, Optional
 
 import matplotlib.pyplot as plt
@@ -18,6 +19,7 @@ class Wall:
     simulation_name: InitVar[Optional[str]] = None
     _registered: bool = field(init=False, default=False)
     _name: Optional[str] = field(init=False, default=None)
+    _wall_length: float = field(init=False, default=nan)
     _content_dict: Optional[dict] = field(init=False, default=None)
     _content_dicts: Optional[list[dict]] = field(init=False, default=None)
 
@@ -42,6 +44,8 @@ class Wall:
         wall_vec = end_vec - start_vec
         wall_length = np.linalg.norm(wall_vec)
         wall_center = wall_vec / 2 + start_vec
+
+        self._wall_length = wall_length 
 
         position: list[float] = wall_center.tolist()
         position.append(self.wall_height / 2.0)
@@ -132,6 +136,11 @@ class Wall:
     def color(self) -> list[float]:
         self._generate_content_dict()
         return self.content_dict["rgba"]
+    
+    @property
+    def wall_length(self) -> float:
+        self._generate_content_dict()
+        return self._wall_length
 
     def _plot2d(self, ax: plt.Axes):
         ax.plot(

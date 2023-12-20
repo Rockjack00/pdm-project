@@ -96,7 +96,6 @@ class PerimeterWall(Wall):
             dx = (i % 2 == 0) * self.width / 2
             dy = self.length * (i % 2 == 1) / 2
 
-
             color = self.color
 
             if (np.array(color) == 1.0).all():
@@ -107,3 +106,7 @@ class PerimeterWall(Wall):
                 [y - dy, y + dy],
                 color=color,
             )
+
+    @property
+    def wall_length(self) -> float:
+        raise NotImplementedError("This does not make sense for this Wall-type.")
