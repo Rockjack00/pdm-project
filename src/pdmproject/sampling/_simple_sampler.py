@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -45,8 +45,33 @@ class SimpleSampler(SamplerBase):
         self._upper_bound = upper_bound
 
     def get_sample(
-        self, sample_count: int = 1
-    ) -> ndarray[tuple[int, Literal[7]], dtype[np.float64]]:
+        self, sample_count: Optional[int] = None
+    ) -> ndarray[tuple[int, Literal[7]] | tuple[Literal[7]], dtype[np.float64]]:
+        # FIXME: TEMPORARY HACK FOR GOALPOINT
+        if self._goal_prob is not None:
+            if np.random.rand() <= self._goal_prob:
+                return self._goal_point
+
+        if sample_count is None:
+            size = None
+        else:
+            size=(sample_count, 7)
         return np.random.uniform(
-            self._lower_bound, self._upper_bound, size=(sample_count, 7)
+            self._lower_bound, self._upper_bound, size=size
         )
+
+    @SamplerBase.lower_bound.getter
+    def lower_bound(self):
+        return self._lower_bound
+
+    @SamplerBase.upper_bound.getter
+    def upper_bound(self):
+        return self._upper_bound
+
+    def register_goal_hack(self, goal_point: npt.ArrayLike, probability: float = 0.1):
+        assert (
+            0 <= probability and probability <= 1
+        ), "probablity should be between [0,1]"
+
+        self._goal_prob = probability
+        self._goal_point = np.asarray(goal_point)

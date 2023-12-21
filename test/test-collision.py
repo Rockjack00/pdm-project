@@ -20,6 +20,7 @@ N_STEPS = 1000
 robots = [
     CollisionCheckRobot(urdf="../demo/urdf/mobileManipulator.urdf"), #Fix Relative paths to urdf models
 ]
+
 env = UrdfEnv(
     dt=0.01,
     robots=robots,

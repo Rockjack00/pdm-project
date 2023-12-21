@@ -6,7 +6,7 @@ import time
 from pdmproject.environment import GateWall, PDMWorldCreator, PerimeterWall, Wall
 from pdmproject.collision_checking import CollisionCheckRobot
 from pdmproject.planning import RRTStar
-
+from pdmproject.sampling import SimpleSampler
 
 # World Building
 
@@ -52,7 +52,14 @@ search_area = (-5, 5,
             -2/3 * np.pi, 2/3 * np.pi, 
             0, 2 * np.pi)
 
-rrt_star = RRTStar(robot=robots[0], start=start_point, goal=goal_point, search_area=search_area, step_size=0.1, max_iter=1000, radius=5)
+sampler = SimpleSampler(
+    lower_bound = tuple(i for i in search_area[::2]),
+    upper_bound = tuple(i for i in search_area[1::2])
+)
+
+sampler.register_goal_hack(goal_point)
+
+rrt_star = RRTStar(robot=robots[0], start=start_point, goal=goal_point, sampler=sampler, step_size=0.1, max_iter=1000, radius=5)
 rrt_star.plan()
 env.close()
 rrt_star.plot_path()

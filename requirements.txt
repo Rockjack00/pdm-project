@@ -6,3 +6,4 @@ matplotlib
 scipy
 PyQt6 # For interactive plots
 tqdm
+tkinter
