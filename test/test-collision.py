@@ -23,7 +23,7 @@ robots = [
 env = UrdfEnv(
     dt=0.01,
     robots=robots,
-    render=False,
+    render=True,
 )
 
 world_plan.insert_into(env)
@@ -39,8 +39,8 @@ time_1 = time.time()
 for _ in range(N_STEPS):
     x = np.random.randint(-25, 25) / 10
     y = np.random.randint(-35, 35) / 10
-    robots[0].check_if_colliding(np.array([x, y, 0.0, 0.0, 0.0, 0.0, 0.0]), verbose=True)
-    #time.sleep(.1)
+    robots[0].check_if_colliding(np.array([x, y, 0.0, 0.0, 0.0, 0.0, 0.0]))
+    time.sleep(.01)
 
 time_2 = time.time()
 
