@@ -5,15 +5,26 @@ from urdfenvs.robots.generic_urdf import GenericUrdfReacher
 
 
 class CollisionCheckRobot(GenericUrdfReacher):
-    """ CollisionCheckRobot inherist from GenericUrdfReacher
+    """ CollisionCheckRobot inherits from GenericUrdfReacher
         Adds collision checking functionality
     """
 
-    def __init__(self, urdf):
+    def __init__(self, urdf) -> None:
+        """ Initialise robot class
+
+        Args:
+            urdf (string): Path to robot urdf file
+        """
         mode = "vel"
         super().__init__(urdf, mode)
 
-    def set_pose(self, pose):
+
+    def set_pose(self, pose) -> None:
+        """ Set robot pose in simulation
+
+        Args:
+            pose (Union[np.ndarray, List]): robot pose to set
+        """
         for i in range(self._n):
             p.resetJointState(
                 self._robot,
@@ -25,12 +36,11 @@ class CollisionCheckRobot(GenericUrdfReacher):
         p.performCollisionDetection()
 
 
-    def check_if_colliding(self, pose, verbose=False)-> bool: 
+    def check_if_colliding(self, pose)-> bool: 
         """ Check if given pose is colliding with the environment.
 
         Args:
             pose (Union[np.ndarray, List]): The pose to check for collisions.
-            verbose (bool, optional): Whether to print verbose information. Defaults to False.
 
         Returns:
             bool: True if collision is detected, False otherwise.
@@ -48,11 +58,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
         contacts = p.getContactPoints(self._robot)
 
         if len(contacts) > 1:
-            if verbose:
-                print("COLLISION DETECTED")
             return True
         
-        if verbose:
-            print("NO COLLISION DETECTED")
         return False
         
