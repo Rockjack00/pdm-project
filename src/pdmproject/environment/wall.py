@@ -45,7 +45,7 @@ class Wall:
         wall_length = np.linalg.norm(wall_vec)
         wall_center = wall_vec / 2 + start_vec
 
-        self._wall_length = wall_length 
+        self._wall_length = wall_length
 
         position: list[float] = wall_center.tolist()
         position.append(self.wall_height / 2.0)
@@ -126,7 +126,7 @@ class Wall:
     def content_dict(self) -> dict[str, Any]:
         self._generate_content_dict()
         return self._content_dict
-    
+
     @property
     def content_dicts(self) -> list[dict[str, Any]]:
         self._generate_content_dicts()
@@ -136,7 +136,7 @@ class Wall:
     def color(self) -> list[float]:
         self._generate_content_dict()
         return self.content_dict["rgba"]
-    
+
     @property
     def wall_length(self) -> float:
         self._generate_content_dict()

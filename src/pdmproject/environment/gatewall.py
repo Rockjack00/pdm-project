@@ -1,6 +1,6 @@
 import copy
-from dataclasses import KW_ONLY, dataclass, field
-from typing import ClassVar, Optional
+from dataclasses import KW_ONLY, dataclass
+from typing import ClassVar
 
 import numpy as np
 from matplotlib.axes import Axes
@@ -8,6 +8,46 @@ from mpscenes.obstacles.box_obstacle import BoxObstacle
 from pybullet_utils.transformations import quaternion_from_euler
 
 from .wall import Wall
+
+
+def upgrade_to_gatewall(
+    wall: Wall,
+    gate_point_rate: float = 0.5,
+    gate_width: float = 1.0,
+    gate_height: float = 1.5,
+) -> "GateWall":
+    """Upgrade a normal Wall to a GateWall
+
+    Args:
+        wall (Wall): The original Wall to upt a gate in
+        gate_point_rate (float, optional): The rate allong the wall where the gate should be placed. Defaults to 0.5.
+        gate_width (float, optional): The width of the gate. Defaults to 1.0.
+        gate_height (float, optional): The height of the gate, it should be smaller than the wall_height of the original Wall. Defaults to 1.5.
+
+    Returns:
+        GateWall: A gate wall placed at the original wall position
+    """
+    assert (
+        not wall.is_registered
+    ), "Trying to upgrade a Wall, which is already registered"
+
+    start_vec = np.asarray(wall.start_point)
+    gate_point = (
+        (np.asarray(wall.end_point) - start_vec) * gate_point_rate + start_vec
+    ).astype(float)
+
+    new_wall = GateWall(
+        wall.start_point,
+        wall.end_point,
+        (float(gate_point[0]), float(gate_point[1])),
+        thickness=wall.thickness,
+        wall_height=wall.wall_height,
+        extra_data=wall.extra_data,
+        gate_height=float(gate_height),
+        gate_width=float(gate_width),
+    )
+
+    return new_wall
 
 
 @dataclass
@@ -71,7 +111,6 @@ class GateWall(Wall):
 
         wall_vec = end_vec - start_vec
         total_wall_length = np.linalg.norm(wall_vec)
-        # wall_center = wall_vec / 2 + start_vec
 
         self._wall_length = total_wall_length
 
@@ -181,10 +220,16 @@ class GateWall(Wall):
 
         # Gate
         ax.plot(
-            [self.gate_point[0] - gate_correction[0], self.gate_point[0] + gate_correction[0]],
-            [self.gate_point[1] - gate_correction[1], self.gate_point[1] + gate_correction[1]],
+            [
+                self.gate_point[0] - gate_correction[0],
+                self.gate_point[0] + gate_correction[0],
+            ],
+            [
+                self.gate_point[1] - gate_correction[1],
+                self.gate_point[1] + gate_correction[1],
+            ],
             color=self.color,
-            linestyle=":"
+            linestyle=":",
         )
 
         # END

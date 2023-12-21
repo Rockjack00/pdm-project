@@ -1,9 +1,9 @@
 import copy
 from typing import ClassVar, Optional
 
+import numpy as np
 from matplotlib.axes import Axes
 from mpscenes.obstacles.box_obstacle import BoxObstacle
-import numpy as np
 
 from .wall import Wall
 

@@ -4,4 +4,4 @@ from pdmproject.environment import generate_environment
 np.random.seed(42)
 # np.random.seed(99000)
 
-generate_environment(inspect=True)#, minimum_gate_width=3.5)
+generate_environment(inspect=True)
