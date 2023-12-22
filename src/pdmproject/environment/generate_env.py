@@ -9,6 +9,8 @@ from pdmproject.environment.wall import Wall
 from .pdmworld import PDMWorldCreator
 from .perimeterwall import PerimeterWall
 
+from scipy.spatial import voronoi_plot_2d
+
 
 # TODO: ADD ARGUMENTS
 def generate_environment(

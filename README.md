@@ -64,6 +64,18 @@ For development the package can be installed as editable:
 pip install -e .
 ```
 
+#### NOTES: TO ADD
+***TODO***: Integrate and specify this
+If using qt backend install (Ubuntu):
+```bash
+sudo apt install libxcd-cursor0
+```
+
+If using TKinter in virtual env (Ubuntu with Deadsnakesppa):
+```bash
+sudo apt install python3.x-tk
+``` 
+
 ## Running the demo
 _#TODO_: demo instructions
 ```bash

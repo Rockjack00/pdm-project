@@ -57,8 +57,6 @@ sampler = SimpleSampler(
     upper_bound = tuple(i for i in search_area[1::2])
 )
 
-sampler.register_goal_hack(goal_point)
-
 rrt_star = RRTStar(robot=robots[0], start=start_point, goal=goal_point, sampler=sampler, step_size=0.1, max_iter=1000, radius=5)
 rrt_star.plan()
 env.close()
