@@ -2,7 +2,7 @@ import matplotlib
 import numpy as np
 
 matplotlib.use("TkAgg")
-# matplotlib.use("QtAgg")
+
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 

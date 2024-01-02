@@ -12,7 +12,7 @@ world_plan.register(
     GateWall((-1, 1), (-2.5, 1), (-1.75, 1), extra_data={"rgba": [0.9, 0.4, 0.4, 1.0]})
 )
 
-plt.switch_backend("QtAgg")
+plt.switch_backend("TkAgg")
 
 # world_plan
 

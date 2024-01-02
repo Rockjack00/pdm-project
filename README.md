@@ -42,6 +42,8 @@ environment.
 Note: These setup instructions have been tested on Ubuntu 20.04 LTS and 22.04 LTS.
 On other platforms your mileage may vary.
 
+> An install/setup script is provided, which performs the same steps. Use at your own risks!
+
 We recommend installing this project in a python virtual environment using the 
 standard `venv` python package.
 1. Create the virtual environment and activate it.
@@ -59,6 +61,11 @@ Install the necessary packages with:
 pip install -r requirements.txt
 ```
 
+If you are using Ubuntu (22.04 LTS, Default Python):
+```bash
+sudo apt install python3-tk
+```
+
 For development the package can be installed as editable:
 ```bash
 pip install -e .
@@ -66,14 +73,14 @@ pip install -e .
 
 #### NOTES: TO ADD
 ***TODO***: Integrate and specify this
-If using qt backend install (Ubuntu):
+<!-- If using qt backend install (Ubuntu):
 ```bash
 sudo apt install libxcd-cursor0
-```
+``` -->
 
 If using TKinter in virtual env (Ubuntu with Deadsnakesppa):
 ```bash
-sudo apt install python3.x-tk
+sudo apt install python3.10-tk
 ``` 
 
 ## Running the demo

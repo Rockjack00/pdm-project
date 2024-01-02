@@ -1,8 +1,7 @@
 pip>=21.2
-urdfenvs @ git+https://github.com/maxspahn/gym_envs_urdf.git@97d46d0
+urdfenvs==0.8.19
 pytest>=7.4, ==7.4.*
 numpy
 matplotlib
 scipy
-PyQt6 # For interactive plots
 tqdm
