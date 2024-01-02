@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from ..sampling import SamplerBase
-from .node import Node
-
+from ..planning import Node
+from . import metric
 
 class RRTStar:
     def __init__(
@@ -36,8 +36,8 @@ class RRTStar:
             sample_function (_type_, optional): Sampler for configurations from c-space. Defaults to None.
         """
         self.robot = robot
-        self.start = Node(*start)
-        self.goal = Node(*goal)
+        self.start = Node(start)
+        self.goal = Node(goal)
         # self.search_area = search_area #search_area shape is (min_q1, max_q1, min_q2, max_q2, ..., max_q7)
         self.max_iter = max_iter
         self.step_size = step_size
@@ -45,25 +45,6 @@ class RRTStar:
         self.node_list = [self.start]
         self.sampler = sampler
 
-    # def _default_sample_function(self):
-    #     """ Default sampling function that samples a random 7d node based on the bounds given by: search_area
-
-    #     Returns:
-    #         Node: randomly sampled node. Either new node or the goal node
-    #     """
-
-    #     if np.random.rand() < 0.9: # 1 - probability of sampling goal node
-
-    #         return Node(np.random.uniform(self.search_area[0], self.search_area[1]),
-    #                     np.random.uniform(self.search_area[2], self.search_area[3]),
-    #                     np.random.uniform(self.search_area[4], self.search_area[5]),
-    #                     np.random.uniform(self.search_area[6], self.search_area[7]),
-    #                     np.random.uniform(self.search_area[8], self.search_area[9]),
-    #                     np.random.uniform(self.search_area[10], self.search_area[11]),
-    #                     np.random.uniform(self.search_area[12], self.search_area[13]))
-
-    #     else:
-    #         return self.goal
 
     def collision_checker(self, pose):
         return self.robot.check_if_colliding(pose)
@@ -79,65 +60,44 @@ class RRTStar:
         Returns:
             double: angle difference in rad
         """
-
-        return (to_angle - from_angle + np.pi) % (2 * np.pi) - np.pi
+        return metric.angle_metric(from_angle, to_angle)
+        # return (to_angle - from_angle + np.pi) % (2 * np.pi) - np.pi
+        # Source book planning-algs page 205 equ 5.7
+        # diff = np.abs(from_angle-to_angle)
+        # return np.minimum(diff, 2*np.pi-diff)
 
     @staticmethod
-    def calculate_distance(node1, node2):
+    def calculate_distance(to_node: Node, from_node: Node):
         """Calculate distance between two nodes
 
         Args:
-            node1 (Node): point in C-space
-            node2 (Node): poin in C-space
+            to_node (Node): point in C-space
+            from_node (Node): poin in C-space
 
         Returns:
             double: distance
         """
+        # diff = to_node.get_7d_point() - from_node.get_7d_point()
+        # diff[2::4] = (-diff[2::4]+np.pi)%(2*np.pi) - np.pi # This is wrong
+        # squared_distance = diff**2
+        # # abs_ang = np.absolute(diff[2::4])
+        # # diff[2::4]= np.minimum(abs_ang, 2*np.pi - abs_ang)
 
-        squared_distance = (
-            (node1.q1 - node2.q1) ** 2
-            + (node1.q2 - node2.q2) ** 2
-            + RRTStar.angle_difference_rad(from_angle=node1.q3, to_angle=node2.q3) ** 2
-            + (node1.q4 - node2.q4) ** 2
-            + (node1.q5 - node2.q5) ** 2
-            + (node1.q6 - node2.q6) ** 2
-            + RRTStar.angle_difference_rad(from_angle=node1.q7, to_angle=node2.q7) ** 2
-        )
-
-        return np.sqrt(squared_distance)
+        # return np.sqrt(np.sum(squared_distance))
+        return metric.distance_metric(to_arr=to_node.get_7d_point(), from_arr=from_node.get_7d_point())
 
     @staticmethod
-    def unit_vector(from_node, to_node):
+    def unit_vector(from_node: Node, to_node: Node):
         """Calculates a unit vector that goes from one node to another
 
         Args:
-            node1 (Node): point in C-space
-            node2 (Node): poin in C-space
+            from_node (Node): point in C-space
+            to_node (Node): point in C-space
 
         Returns:
             np.array: unit vector
         """
-        distance = RRTStar.calculate_distance(from_node, to_node)
-
-        unit_vector = np.array(
-            [
-                to_node.q1 - from_node.q1,
-                to_node.q2 - from_node.q2,
-                RRTStar.angle_difference_rad(
-                    from_angle=from_node.q3, to_angle=to_node.q3
-                ),
-                to_node.q4 - from_node.q4,
-                to_node.q5 - from_node.q5,
-                to_node.q6 - from_node.q6,
-                RRTStar.angle_difference_rad(
-                    from_angle=from_node.q7, to_angle=to_node.q7
-                ),
-            ]
-        )
-
-        unit_vector /= distance
-
-        return unit_vector
+        return metric.unit_vector(from_arr=from_node.get_7d_point(), to_arr=to_node.get_7d_point())
 
     def get_nearest_node(self, new_node):
         """Find the closest node to the new node
@@ -269,26 +229,14 @@ class RRTStar:
         while current_node.parent is not None:
             path.append(
                 (
-                    current_node.q1,
-                    current_node.q2,
-                    current_node.q3,
-                    current_node.q4,
-                    current_node.q5,
-                    current_node.q6,
-                    current_node.q7,
+                    *current_node.get_7d_point(),
                 )
             )
             current_node = current_node.parent
 
         path.append(
             (
-                self.start.q1,
-                self.start.q2,
-                self.start.q3,
-                self.start.q4,
-                self.start.q5,
-                self.start.q6,
-                self.start.q7,
+                *self.start.get_7d_point(),
             )
         )
         path.reverse()

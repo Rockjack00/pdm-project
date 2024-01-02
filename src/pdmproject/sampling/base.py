@@ -4,7 +4,7 @@ from typing import Any, Literal, Optional, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ..planning.node import Node
+from ..planning import Node
 
 
 class SamplerBase(ABC):
