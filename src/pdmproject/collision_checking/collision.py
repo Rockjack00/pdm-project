@@ -3,6 +3,8 @@ import numpy as np
 
 from urdfenvs.robots.generic_urdf import GenericUrdfReacher
 
+from typing import Tuple
+
 
 class CollisionCheckRobot(GenericUrdfReacher):
     """ CollisionCheckRobot inherits from GenericUrdfReacher
@@ -17,6 +19,35 @@ class CollisionCheckRobot(GenericUrdfReacher):
         """
         mode = "vel"
         super().__init__(urdf, mode)
+
+
+    def reset(
+            self,
+            pos: np.ndarray,
+            vel: np.ndarray,
+            mount_position: np.ndarray,
+            mount_orientation: np.ndarray,) -> None:
+
+        if hasattr(self, "_robot"):
+            p.removeBody(self._robot)
+        self._robot = p.loadURDF(
+            fileName=self._urdf_file,
+            basePosition=mount_position.tolist(),
+            baseOrientation=mount_orientation.tolist(),
+            flags=p.URDF_USE_SELF_COLLISION,
+            useFixedBase=True,
+        )
+        self.set_joint_names()
+        self.extract_joint_ids()
+        for i in range(self._n):
+            p.resetJointState(
+                self._robot,
+                self._robot_joints[i],
+                pos[i],
+                targetVelocity=vel[i],
+            )
+        self.update_state()
+        self._integrated_velocities = vel
 
 
     def set_pose(self, pose) -> None:
@@ -45,7 +76,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
         Returns:
             bool: True if collision is detected, False otherwise.
         """
-            
+        
         for i in range(self._n):
             p.resetJointState(
                 self._robot,
@@ -55,10 +86,41 @@ class CollisionCheckRobot(GenericUrdfReacher):
             )
 
         p.performCollisionDetection()
+
+        contacts = p.getContactPoints(self._robot)
+        self_contacts = p.getContactPoints(self._robot, self._robot)
+
+        if len(contacts) - len(self_contacts) > 1:
+            return True
+
+        valid_self_contacts = [tpl for tpl in self_contacts if tpl[3] - tpl[4] != 2 and tpl[3] - tpl[4] != -2]
+
+        if len(valid_self_contacts) > 0:
+            return True
+
+        return False
+    
+
+    def get_links_data(self) -> Tuple[np.ndarray, np.ndarray]:
+        """ Get point data for collisions
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: first np.array returns link indices of links which are colliding
+            second np.ndarray returns x y z position of collision points on the obstacle in world coordinates 
+        """
+        
         contacts = p.getContactPoints(self._robot)
 
-        if len(contacts) > 1:
-            return True
-        
-        return False
-        
+        obstacle_contacts = [tpl for tpl in contacts if tpl[1] != tpl[2] and tpl[2] != 0]
+
+        n_collisions = len(obstacle_contacts)
+        contact_links = np.zeros(n_collisions, dtype=np.int8)
+        contact_links_poses = np.zeros((n_collisions, 3))
+
+        for i, contact in enumerate(obstacle_contacts):
+            contact_links[i] = contact[3]
+            contact_links_poses[i, 0:] = contact[6]
+
+        return contact_links, contact_links_poses
+
+
