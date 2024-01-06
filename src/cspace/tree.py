@@ -16,7 +16,7 @@ class SparseBinaryTetrahexacontree:
 
     def __init__(self, 
                  resolution=7, 
-                 limits=np.indices(2,(SparseBinaryTetrahexacontree.d))[1],
+                 limits=np.indices((2,SparseBinaryTetrahexacontree.d))[1],
                  wraps=[False] * SparseBinaryTetrahexacontree.d):
         '''
         Create a sparse binary 64-tree.
@@ -60,7 +60,7 @@ class SparseBinaryTetrahexacontree:
         direction.
 
         Arguments:
-            points - A numpy array of shape (... , 6) where the final dimension 
+            points - A numpy array of shape (... , self.d) where the final dimension 
                 contains a 6 dimensional point to query.
 
         Return:
@@ -117,7 +117,7 @@ class SparseBinaryTetrahexacontree:
 
         Returns:
             A numpy array of shape (N,d) position vectors of unsigned 
-            integers (normalized denominators) where d is the dimension
+            integers (normalized numerators) where d is the dimension
             of this tree and N is the number of vectors.
         '''
         assert self.res > 8, 'Not implemented for resolution > 8'
@@ -131,6 +131,29 @@ class SparseBinaryTetrahexacontree:
 
         return vectors
 
+    def get_configurations(self, node_key, depth):
+        '''
+        Get a range of valid configurations contained in node.
+
+        Arguments:
+            node_key - A voxel key using the first depth indices.
+            depth - The depth of the node. This is equal to self.res by default
+                which sets a single voxel.
+
+        Returns:
+            A numpy array of shape (N,d) configuration, scaled from self.limits.
+        '''
+        node_key = self.get_node(node_key, depth)
+
+        lower_bound_numerators = self.vector(node_key)
+        upper_bound_numerators = 2**(self.res - depth) + lower_bound_numerators
+        numerators = np.vstack((lower_bound_numerators, upper_bound_numerators))
+        norm_bounds = numerators / (2**(self.res + 1))
+
+        # linear interpolation
+        limits = norm_bounds * (self.limits[1,:] - self.limits[0,:]) + self.limist[0,:]
+        return limits
+
     def max_content(self, depth):
         '''
         Calculate the maximum content of a node at depth.
@@ -140,6 +163,20 @@ class SparseBinaryTetrahexacontree:
         '''
         assert depth > 0 and depth <= self.res
         return 2 ** ((self.res - depth) * self.d)
+
+    def get_node(voxel, depth):
+        '''
+        Get the node_key for the parent node containing voxel.
+
+        Arguments:
+            voxel - A voxel key using the first depth indices.
+            depth - The depth of the node. This is equal to self.res by default
+                which sets a single voxel.
+
+        Returns:
+            A voxel key using only the first depth indices.
+        '''
+        return voxel & (2**(depth + 1) - 1)
 
     def _insert(self, parent, index, depth):
         '''
@@ -246,6 +283,7 @@ class SparseBinaryTetrahexacontree:
         '''
         assert depth > 0 and depth <= self.res
         leaf_depth = self.res - 1
+        node_key = self.get_node(node_key, depth)
 
         # traverse from the last visited node to the voxel instead of walking from top
         if node_stack is None:
@@ -306,7 +344,7 @@ class SparseBinaryTetrahexacontree:
             its smallest full ancestor on top.
         '''
         assert depth > 0 and depth <= self.res
-
+        node_key = self.get_node(node_key, depth)
         is_set = False
 
         # traverse from the last visited node to the voxel instead of walking from top
@@ -351,12 +389,13 @@ class SparseBinaryTetrahexacontree:
             of direction flags (left-to-right).
         '''
         assert depth > 0 and depth <= self.res
+        node_key = self.get_node(node_key, depth) # ensure indices of lowwe depth are ignored
 
         modulus = 2**(self.res + 1)
         inc = np.vstack((np.eye(self.d), -1 * np.eye(self.d))).astype(int)
 
         inc <<= self.res - depth
-        vector = self.vector(node_key & (2**(depth + 1) - 1)) # ensure indices of lowwe depth are ignored
+        vector = self.vector(node_key) 
         neighbors = vector + inc[(directions & (1 << np.arange(self.d * 2))) > 0]
         neighbors[:,self.wraps] %= modulus
         valid = np.logical_and(neighbors > 0, neighbors < modulus)
@@ -381,6 +420,7 @@ class SparseBinaryTetrahexacontree:
             valued voxel contained under the neighboring node at depth
             node_depth.
         '''
+        node_key = self.get_node(node_key, depth)
         # neighbors at the same tree depth
         queue = self.get_neighbors(node_key, directions, depth)
         # return early if already at voxels
@@ -466,6 +506,7 @@ class SparseBinaryTetrahexacontree:
             neighbors += self._get_smallest_neighbors(node_stack + (child_idx, child), direction)
         return neighbors
 
+    # TODO: parallelize this
     def flood_fill(self, seed):
         '''
         Fill an enclosed volume containing the seed point.
@@ -475,6 +516,7 @@ class SparseBinaryTetrahexacontree:
             seed - A numpy column vector of size (1,self.d) to a point inside 
                 the region to fill.
         '''
+        directions = np.sum(1 << np.arange(self.d*2)) # all directions
         seed_voxel = self.locate(seed)
         
         # Initialize the queue of nodes with the deepest unfilled ancestor
@@ -484,6 +526,7 @@ class SparseBinaryTetrahexacontree:
         # get all of the neighbors
         while len(queue) > 0:
             node_key, depth = queue.pop(0)
+            node_key = self.get_node(node_key, depth)
             if self.get(node_key, depth, node_stack):
                 continue
             queue += self.get_smallest_neighbors(node_key, directions, depth)
