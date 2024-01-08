@@ -9,8 +9,6 @@ from pdmproject.environment.wall import Wall
 from .pdmworld import PDMWorldCreator
 from .perimeterwall import PerimeterWall
 
-from scipy.spatial import voronoi_plot_2d
-
 
 # TODO: ADD ARGUMENTS
 def generate_environment(
@@ -52,7 +50,7 @@ def generate_environment(
     vor = voronoi(points, [-width / 2, width / 2, -length / 2, length / 2])
 
     # We need to keep track of the added walls, since regions can share walls.
-    wall_set: set[tuple(tuple(float, float), tuple(float, float))] = set()
+    wall_set: set[tuple[tuple[float, float], tuple[float, float]]] = set()
 
     for region in vor.filtered_regions:
         vertices = vor.vertices[region + [region[0]], :]
@@ -60,7 +58,7 @@ def generate_environment(
         # Check if doors are possible
         door_possible = False
         for idx in range(vertices.shape[0] - 1):
-            wall_length = np.linalg.norm(vertices[idx] - vertices[idx + 1])
+            wall_length: float = np.linalg.norm(vertices[idx] - vertices[idx + 1])  # type: ignore
             door_possible = door_possible or (
                 (
                     not (
@@ -98,8 +96,8 @@ def generate_environment(
                 thickness=thickness,
             )
 
-            wall_set.add((tuple(vertices[idx]), tuple(vertices[idx + 1])))
-            wall_set.add((tuple(vertices[idx + 1]), tuple(vertices[idx])))
+            wall_set.add((tuple(vertices[idx]), tuple(vertices[idx + 1]))) # type: ignore
+            wall_set.add((tuple(vertices[idx + 1]), tuple(vertices[idx]))) # type: ignore
 
             if (  # Only add a gate if it fits on the wall
                 wall.wall_length >= minimum_gate_width
@@ -141,11 +139,11 @@ def on_border(point: npt.ArrayLike, width: float, length: float) -> bool:
     """Check if a point is on the border of an origin centered perimeter
 
     Args:
-        point (npt.ArrayLike): A 2D point to check. (dtype=float) 
-        width (float): The width of the perimeter. 
+        point (npt.ArrayLike): A 2D point to check. (dtype=float)
+        width (float): The width of the perimeter.
         length (float): The length of the perimeter.
 
     Returns:
         bool: if the point is on the border or not.
-    """    
+    """
     return (np.abs(point) == (np.array((width, length)) / 2)).any()

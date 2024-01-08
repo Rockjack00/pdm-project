@@ -63,6 +63,9 @@ class GateWall(Wall):
         if self._content_dict is None or regenerate:
             self._generate_content_dict()
 
+        # Assert so type checker is aware of the current situation
+        assert self._content_dict is not None
+
         if self._content_dicts is None or regenerate:
             gate_vec = np.array(self.gate_point)
             end_vec = np.array(self.end_point)
@@ -73,7 +76,7 @@ class GateWall(Wall):
             )
 
             gate_end_vec = gate_vec - end_vec
-            gate_end_dist = np.linalg.norm(gate_end_vec)
+            gate_end_dist: float = np.linalg.norm(gate_end_vec)  # type: ignore
 
             length_end_gate = gate_end_dist - self.gate_width / 2
             wall_center_end_gate_vec = (
@@ -110,12 +113,12 @@ class GateWall(Wall):
         end_vec = np.array(self.end_point)
 
         wall_vec = end_vec - start_vec
-        total_wall_length = np.linalg.norm(wall_vec)
+        total_wall_length: float = np.linalg.norm(wall_vec)  # type: ignore
 
         self._wall_length = total_wall_length
 
         gate_start_vec = gate_vec - start_vec
-        gate_start_dist = np.linalg.norm(gate_start_vec)
+        gate_start_dist: float = np.linalg.norm(gate_start_vec)  # type: ignore
 
         assert (
             np.abs(
@@ -143,7 +146,7 @@ class GateWall(Wall):
         )
 
         gate_end_vec = gate_vec - end_vec
-        gate_end_dist = np.linalg.norm(gate_end_vec)
+        gate_end_dist: float = np.linalg.norm(gate_end_vec)  # type: ignore
 
         length_end_gate = gate_end_dist - self.gate_width / 2
         wall_center_end_gate_vec = (
@@ -181,6 +184,9 @@ class GateWall(Wall):
             )
 
         self._generate_content_dicts(regenerate=regenerate)
+
+        # Assert so type checker is aware of the current situation
+        assert self._content_dicts is not None
 
         content_dict_start_gate = self._content_dicts[0]
         content_dict_top_gate = self._content_dicts[1]

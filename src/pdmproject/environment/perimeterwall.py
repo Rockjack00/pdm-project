@@ -80,6 +80,7 @@ class PerimeterWall(Wall):
 
         wall_segments = []
         self._generate_content_dicts(regenerate=regenerate)
+        assert self._content_dicts is not None
 
         for idx, content_dict in enumerate(self._content_dicts):
             wall = BoxObstacle(name=f"{self._name}-{idx}", content_dict=content_dict)
