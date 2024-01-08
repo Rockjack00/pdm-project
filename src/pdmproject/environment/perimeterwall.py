@@ -106,7 +106,7 @@ class PerimeterWall(Wall):
                 [x - dx, x + dx],
                 [y - dy, y + dy],
                 color=color,
-            )
+            ) # type: ignore
 
     @property
     def wall_length(self) -> float:
