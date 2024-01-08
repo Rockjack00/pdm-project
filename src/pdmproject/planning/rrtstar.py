@@ -1,5 +1,6 @@
 import matplotlib
 import numpy as np
+import numpy.typing as npt
 
 matplotlib.use("TkAgg")
 
@@ -9,6 +10,7 @@ from tqdm import tqdm
 from ..sampling import SamplerBase
 from ..planning import Node
 from . import metric
+
 
 class RRTStar:
     def __init__(
@@ -45,12 +47,27 @@ class RRTStar:
         self.node_list = [self.start]
         self.sampler = sampler
 
+    def collision_checker(
+        self, pose: npt.NDArray[np.float64], perform_callback: bool = True
+    ) -> bool:
+        """Check if the specified pose is colliding.
 
-    def collision_checker(self, pose):
-        return self.robot.check_if_colliding(pose)
+        Args:
+            pose (np.ndarray[np.float64]): The pose of the robot in C-space, which will be checked.
+            perform_callback (bool, optional): If the sampler callback should be called. Defaults to True.
+
+        Returns:
+            bool: True for collision, False otherwise
+        """
+        is_colliding = self.robot.check_if_colliding(pose)
+
+        if perform_callback and is_colliding:
+            self.sampler.callback(pose, self.robot)
+
+        return is_colliding
 
     @staticmethod
-    def angle_difference_rad(from_angle, to_angle):
+    def angle_difference_rad(from_angle: float, to_angle: float) -> float:
         """Calculates shortest distance between two angles
 
         Args:
@@ -67,7 +84,7 @@ class RRTStar:
         # return np.minimum(diff, 2*np.pi-diff)
 
     @staticmethod
-    def calculate_distance(to_node: Node, from_node: Node):
+    def calculate_distance(to_node: Node, from_node: Node) -> float:
         """Calculate distance between two nodes
 
         Args:
@@ -84,10 +101,12 @@ class RRTStar:
         # # diff[2::4]= np.minimum(abs_ang, 2*np.pi - abs_ang)
 
         # return np.sqrt(np.sum(squared_distance))
-        return metric.distance_metric(to_arr=to_node.get_7d_point(), from_arr=from_node.get_7d_point())
+        return metric.distance_metric(
+            to_arr=to_node.get_7d_point(), from_arr=from_node.get_7d_point()
+        )  # type: ignore
 
     @staticmethod
-    def unit_vector(from_node: Node, to_node: Node):
+    def unit_vector(from_node: Node, to_node: Node) -> npt.NDArray[np.float64]:
         """Calculates a unit vector that goes from one node to another
 
         Args:
@@ -97,7 +116,9 @@ class RRTStar:
         Returns:
             np.array: unit vector
         """
-        return metric.unit_vector(from_arr=from_node.get_7d_point(), to_arr=to_node.get_7d_point())
+        return metric.unit_vector(
+            from_arr=from_node.get_7d_point(), to_arr=to_node.get_7d_point()
+        )
 
     def get_nearest_node(self, new_node):
         """Find the closest node to the new node
@@ -111,21 +132,24 @@ class RRTStar:
         distances = [
             RRTStar.calculate_distance(node, new_node) for node in self.node_list
         ]
-        min_index = np.argmin(distances)
+        min_index = np.argmin(distances)  # type: ignore
 
         nearest_node = self.node_list[min_index]
 
         return nearest_node
 
-    def check_collisions_between_nodes(self, from_node, to_node):
+    def check_collisions_between_nodes(
+        self, from_node: Node, to_node: Node, perform_callback: bool = True
+    ) -> bool:
         """Check for collision between two nodes using step size from RRTStar class instance
 
         Args:
             from_node (Node): starting node
             to_node (Node): end node
+            perform_callback (bool, optional): If the sampler callback should be called. Defaults to None
 
         Returns:
-            Bool: True for collision, False otherwise
+            bool: True for collision, False otherwise
         """
 
         unit_vector = self.unit_vector(from_node=from_node, to_node=to_node)
@@ -137,7 +161,9 @@ class RRTStar:
 
         for i in range(number_of_checks):
             node = Node.from_array(from_pose + unit_vector * (i + 1) * self.step_size)
-            if self.collision_checker(node.get_7d_point()):
+            if self.collision_checker(
+                node.get_7d_point(), perform_callback=perform_callback
+            ):
                 return True  # Collision on path
 
         return False
@@ -176,8 +202,8 @@ class RRTStar:
         for _ in tqdm(range(self.max_iter)):
             new_node = self.sampler.get_node_sample()
 
-            if self.collision_checker(new_node.get_7d_point()):
-                self.sampler.callback(new_node.get_7d_point(), self.robot)
+            if self.collision_checker(new_node.get_7d_point(), perform_callback=True):
+                # The callback gets called by the collision checking function.
                 continue
 
             near_nodes = [
@@ -191,7 +217,7 @@ class RRTStar:
             distances = [
                 RRTStar.calculate_distance(node, new_node) for node in near_nodes
             ]
-            sorted_indices = np.argsort(distances)
+            sorted_indices = np.argsort(distances)  # type: ignore
 
             min_cost_node = near_nodes[sorted_indices[0]]
 
@@ -202,9 +228,9 @@ class RRTStar:
 
             # TODO: We could check multiple points if fail
             if self.check_collisions_between_nodes(
-                from_node=min_cost_node, to_node=new_node
+                from_node=min_cost_node, to_node=new_node, perform_callback=True
             ):
-                # TODO: Add callback
+                # The callback gets called by the collision checking function.
                 continue
 
             new_node.parent = min_cost_node
@@ -229,18 +255,10 @@ class RRTStar:
         current_node = self.goal
 
         while current_node.parent is not None:
-            path.append(
-                (
-                    *current_node.get_7d_point(),
-                )
-            )
+            path.append((*current_node.get_7d_point(),))
             current_node = current_node.parent
 
-        path.append(
-            (
-                *self.start.get_7d_point(),
-            )
-        )
+        path.append((*self.start.get_7d_point(),))
         path.reverse()
 
         # Unpack the path into separate lists for q1, q2, and joint angles
@@ -307,7 +325,7 @@ class RRTStar:
         # Plot nodes and edges
         for node in self.node_list:
             if node.parent is not None:
-                plt.plot([node.q1, node.parent.q1], [node.q2, node.parent.q2], "bo-")
+                plt.plot([node.q1, node.parent.q1], [node.q2, node.parent.q2], "bo-")  # type: ignore
 
         # Plot path
         if path:

@@ -4,7 +4,7 @@ from typing import Iterable, Optional
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from matplotlib.figure import FigureBase
+from matplotlib.figure import Figure
 from urdfenvs.urdf_common.urdf_env import UrdfEnv
 
 from pdmproject.environment.wall import Wall
@@ -14,7 +14,7 @@ from pdmproject.environment.wall import Wall
 class PDMWorldCreator:
     walls: InitVar[Optional[Iterable[Wall]]] = None
     _walls: list[Wall] = field(init=False, default_factory=list)
-    _wall_type_counts: defaultdict[type(Wall), int] = field(init=False)
+    _wall_type_counts: defaultdict[type[Wall], int] = field(init=False)
     _wall_name_set: set[str] = field(init=False, default_factory=set)
 
     def __post_init__(self, walls: Optional[Iterable[Wall]]) -> None:
@@ -57,16 +57,20 @@ class PDMWorldCreator:
     def plot2d(
         self,
         ax: Optional[Axes] = None,
-        fig: Optional[FigureBase] = None,
+        fig: Optional[Figure] = None,
         figsize: Optional[tuple[float, float]] = None,
-    ) -> (FigureBase, Axes):
+    ) -> tuple[Figure, Axes]:
         if fig is None:
             if ax is not None:
-                fig = ax.get_figure()
+                figure = ax.get_figure() or plt.figure(figsize=figsize)
+                if ax.get_figure() is None:
+                    figure.add_axes(ax)
             else:
-                fig = plt.figure(figsize=figsize)
+                figure: Figure = plt.figure(figsize=figsize)
+        else:
+            figure = fig
         if ax is None:
-            ax = fig.add_subplot()
+            ax = figure.add_subplot()
 
         ax.set_xlabel("x [m]")
         ax.set_ylabel("y [m]")
@@ -74,4 +78,4 @@ class PDMWorldCreator:
         for wall in self._walls:
             wall._plot2d(ax)
 
-        return fig, ax
+        return figure, ax

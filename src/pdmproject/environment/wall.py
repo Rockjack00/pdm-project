@@ -2,7 +2,7 @@ from dataclasses import KW_ONLY, InitVar, dataclass, field
 from math import nan
 from typing import Any, ClassVar, Optional
 
-import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 import numpy as np
 from mpscenes.obstacles.box_obstacle import BoxObstacle
 from pybullet_utils.transformations import quaternion_from_euler
@@ -20,8 +20,8 @@ class Wall:
     _registered: bool = field(init=False, default=False)
     _name: Optional[str] = field(init=False, default=None)
     _wall_length: float = field(init=False, default=nan)
-    _content_dict: Optional[dict] = field(init=False, default=None)
-    _content_dicts: Optional[list[dict]] = field(init=False, default=None)
+    _content_dict: Optional[dict[str, Any]] = field(init=False, default=None)
+    _content_dicts: Optional[list[dict[str, Any]]] = field(init=False, default=None)
 
     DEFAULT_NAME_TEMPLATE: ClassVar[str] = "wall-"
 
@@ -32,6 +32,9 @@ class Wall:
     def _generate_content_dicts(self, regenerate: bool = False):
         if self._content_dicts is None or regenerate:
             self._generate_content_dict()
+
+        # Assert so type checker is aware of the current situation
+        assert self._content_dict is not None
         self._content_dicts = [self._content_dict]
 
     def _generate_content_dict(self, regenerate: bool = False):
@@ -45,7 +48,7 @@ class Wall:
         wall_length = np.linalg.norm(wall_vec)
         wall_center = wall_vec / 2 + start_vec
 
-        self._wall_length = wall_length
+        self._wall_length = wall_length  # type: ignore
 
         position: list[float] = wall_center.tolist()
         position.append(self.wall_height / 2.0)
@@ -90,7 +93,7 @@ class Wall:
         return self._name is not None
 
     def has_unique_name(self) -> bool:
-        return self.has_name() and self._name.startswith(self.DEFAULT_NAME_TEMPLATE)
+        return self.has_name() and self._name.startswith(self.DEFAULT_NAME_TEMPLATE)  # type: ignore
 
     def _register(self, number: int, name_set: set[str]) -> bool:
         """Register this Wall
@@ -125,11 +128,19 @@ class Wall:
     @property
     def content_dict(self) -> dict[str, Any]:
         self._generate_content_dict()
+
+        # Assert so type checker is aware of the current situation
+        assert self._content_dict is not None
+
         return self._content_dict
 
     @property
     def content_dicts(self) -> list[dict[str, Any]]:
         self._generate_content_dicts()
+
+        # Assert so type checker is aware of the current situation
+        assert self._content_dicts is not None
+
         return self._content_dicts
 
     @property
@@ -142,7 +153,7 @@ class Wall:
         self._generate_content_dict()
         return self._wall_length
 
-    def _plot2d(self, ax: plt.Axes):
+    def _plot2d(self, ax: Axes):
         ax.plot(
             [self.start_point[0], self.end_point[0]],
             [self.start_point[1], self.end_point[1]],

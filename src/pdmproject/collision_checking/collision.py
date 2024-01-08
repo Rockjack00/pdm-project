@@ -1,18 +1,17 @@
 import pybullet as p
 import numpy as np
+from typing import Collection
 
 from urdfenvs.robots.generic_urdf import GenericUrdfReacher
 
-from typing import Tuple
-
 
 class CollisionCheckRobot(GenericUrdfReacher):
-    """ CollisionCheckRobot inherits from GenericUrdfReacher
-        Adds collision checking functionality
+    """CollisionCheckRobot inherits from GenericUrdfReacher
+    Adds collision checking functionality
     """
 
     def __init__(self, urdf) -> None:
-        """ Initialise robot class
+        """Initialise robot class
 
         Args:
             urdf (string): Path to robot urdf file
@@ -20,14 +19,13 @@ class CollisionCheckRobot(GenericUrdfReacher):
         mode = "vel"
         super().__init__(urdf, mode)
 
-
     def reset(
-            self,
-            pos: np.ndarray,
-            vel: np.ndarray,
-            mount_position: np.ndarray,
-            mount_orientation: np.ndarray,) -> None:
-
+        self,
+        pos: np.ndarray,
+        vel: np.ndarray,
+        mount_position: np.ndarray,
+        mount_orientation: np.ndarray,
+    ) -> None:
         if hasattr(self, "_robot"):
             p.removeBody(self._robot)
         self._robot = p.loadURDF(
@@ -49,26 +47,26 @@ class CollisionCheckRobot(GenericUrdfReacher):
         self.update_state()
         self._integrated_velocities = vel
 
-
-    def set_pose(self, pose) -> None:
-        """ Set robot pose in simulation
+    def set_pose(self, pose: Collection) -> None:
+        """Set robot pose in simulation
 
         Args:
-            pose (Union[np.ndarray, List]): robot pose to set
+            pose (Collection): robot pose to set. There should be self._n items of type float.
         """
-        for i in range(self._n):
+        assert len(pose) == self._n
+
+        for robot_joint, joint_pose in zip(self._robot_joints, pose):
             p.resetJointState(
                 self._robot,
-                self._robot_joints[i],
-                pose[i],
+                robot_joint,
+                joint_pose,
                 targetVelocity=0,
             )
 
         p.performCollisionDetection()
 
-
-    def check_if_colliding(self, pose)-> bool: 
-        """ Check if given pose is colliding with the environment.
+    def check_if_colliding(self, pose) -> bool:
+        """Check if given pose is colliding with the environment.
 
         Args:
             pose (Union[np.ndarray, List]): The pose to check for collisions.
@@ -76,16 +74,8 @@ class CollisionCheckRobot(GenericUrdfReacher):
         Returns:
             bool: True if collision is detected, False otherwise.
         """
-        
-        for i in range(self._n):
-            p.resetJointState(
-                self._robot,
-                self._robot_joints[i],
-                pose[i],
-                targetVelocity=0,
-            )
 
-        p.performCollisionDetection()
+        self.set_pose(pose)
 
         contacts = p.getContactPoints(self._robot)
         self_contacts = p.getContactPoints(self._robot, self._robot)
@@ -93,25 +83,30 @@ class CollisionCheckRobot(GenericUrdfReacher):
         if len(contacts) - len(self_contacts) > 1:
             return True
 
-        valid_self_contacts = [tpl for tpl in self_contacts if tpl[3] - tpl[4] != 2 and tpl[3] - tpl[4] != -2]
+        valid_self_contacts = [
+            tpl
+            for tpl in self_contacts
+            if tpl[3] - tpl[4] != 2 and tpl[3] - tpl[4] != -2
+        ]
 
         if len(valid_self_contacts) > 0:
             return True
 
         return False
-    
 
-    def get_links_data(self) -> Tuple[np.ndarray, np.ndarray]:
-        """ Get point data for collisions
+    def get_links_data(self) -> tuple[np.ndarray, np.ndarray]:
+        """Get point data for collisions
 
         Returns:
-            Tuple[np.ndarray, np.ndarray]: first np.array returns link indices of links which are colliding
-            second np.ndarray returns x y z position of collision points on the obstacle in world coordinates 
+            tuple[np.ndarray, np.ndarray]: first np.array returns link indices of links which are colliding
+            second np.ndarray returns x y z position of collision points on the obstacle in world coordinates
         """
-        
+
         contacts = p.getContactPoints(self._robot)
 
-        obstacle_contacts = [tpl for tpl in contacts if tpl[1] != tpl[2] and tpl[2] != 0]
+        obstacle_contacts = [
+            tpl for tpl in contacts if tpl[1] != tpl[2] and tpl[2] != 0
+        ]
 
         n_collisions = len(obstacle_contacts)
         contact_links = np.zeros(n_collisions, dtype=np.int8)
@@ -122,5 +117,3 @@ class CollisionCheckRobot(GenericUrdfReacher):
             contact_links_poses[i, 0:] = contact[6]
 
         return contact_links, contact_links_poses
-
-
