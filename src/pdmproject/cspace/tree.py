@@ -31,7 +31,7 @@ class SparseBinaryTetrahexacontree:
 
         # TODO: remove this constraint?
         # make sure integers are long enough to hold the keys
-        assert sys.maxsize.bit_length() + 1 >= self.res * self.d, 
+        assert sys.maxsize.bit_length() + 1 >= self.res * self.d, \
             'Failed to initialize 64-tree. System must use 64-bit integers.'
 
         # TODO: remove this constraint?
@@ -72,7 +72,7 @@ class SparseBinaryTetrahexacontree:
         
         # normalize points within the valid ranges and conver to small integer quotients
         # NOTE: the denominator is 2**self.res - 1
-        norm_points = (np.reshape(points, (-1, self.d)) - self.limits[0,:]) /
+        norm_points = (np.reshape(points, (-1, self.d)) - self.limits[0,:]) / \
                         (self.limits[1,:] - self.limits[0,:])
         norm_points = np.round(norm_points * (2**self.res-1), 0, dtype=np.uint8)
 
@@ -228,7 +228,7 @@ class SparseBinaryTetrahexacontree:
             top or its smallest full ancestor. Guaranteed to have length from 1
             to self.res (inclusive).
         '''
-        assert len(node_stack) <= self.res, 
+        assert len(node_stack) <= self.res, \
             f'node_stack has more elements ({len(node_stack)}) than maximum tree depth ({self.res}).'
 
         # build stack of ids

@@ -3,7 +3,7 @@ import numpy.typing as npt
 from numpy import dtype, ndarray
 
 from .base import SamplerBase
-from cspace.tree import SparseBinaryTetrahexacontree
+from pdmproject.cspace.tree import SparseBinaryTetrahexacontree
 
 
 class NullSpaceSampler(SamplerBase):
