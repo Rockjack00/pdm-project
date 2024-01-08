@@ -64,6 +64,7 @@ pip install -r requirements.txt
 If you are using Ubuntu (22.04 LTS, Default Python):
 ```bash
 sudo apt install python3-tk
+sudo apt install python3-pil python3-pil.imagetk
 ```
 
 For development the package can be installed as editable:

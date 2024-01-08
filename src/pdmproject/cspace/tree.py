@@ -2,47 +2,55 @@ import numpy as np
 import numpy.typing as npt
 
 
-class SparseBinaryTetrahexacontree:
+class SparseOccupancyTree:
     '''
-    A sparse binary degree-64 analog to a sparse voxel octree data structure.
-    This is the head of the tree, which implements tree traversal algorithms.
-    Topological nodes and leaf nodes are implemented separately.
+    A sparse occupancy tree analogous to a sparse voxel octree data structure.
+    Voxels only store binary information and nodes store a count of the number
+    of voxels set to True in each of their children.
     '''
-
-    d = 6                        # dimension of the tree
-    # TODO: make the dimension arbirary?
-    # All functions currently support this, however they assume voxels keys
-    # fit inside a 64-bit integer.
 
     def __init__(self, 
-                 resolution=7, 
-                 limits=np.indices((2,SparseBinaryTetrahexacontree.d))[1],
-                 wraps=[False] * SparseBinaryTetrahexacontree.d):
+                 dimension,
+                 resolution, 
+                 limits=None,
+                 wraps=None):
         '''
-        Create a sparse binary 64-tree.
+        Create a sparse occupancy tree.
 
         Arguments:
+            dimension - The dimensionality of a voxel.
             resolution - The highest tree depth. The number of cells along any
                 given dimension will be 2^resolution.
-            limits - A numpy array of shape (2,6) which indicates minimum and
-                maximum values for each dimension.
-            wraps - A list of booleans which indicate if a dimension is homomorphic to S^1.
+            limits - A numpy array of shape (2,d) which indicates minimum and
+                maximum values for each dimension. Defaults to [0,1] for every
+                dimension.
+            wraps - A list of booleans which indicate which dimensions are 
+                homomorphic to S^1. Must be of length dimension. Defaults to
+                False for all dimensions.
         '''
-
-        # TODO: remove this constraint?
-        # make sure integers are long enough to hold the keys
-        assert sys.maxsize.bit_length() + 1 >= self.res * self.d, \
-            'Failed to initialize 64-tree. System must use 64-bit integers.'
 
         # TODO: remove this constraint?
         # z-order() and vector() rely on numpy bit manipulation which expect chars
-        # so indexes must be 8 bits or fewer
-        assert self.res > 8, 'Not implemented for resolution > 8'
+        # so vectors must be 8 bits or fewer
+        assert resolution <= 8, 'Not implemented for resolution > 8'
         
+        # TODO: remove this constraint?
+        # Currently assume voxels keys fit inside a 28-byte (224-bit) BIG_NUM.
+        assert resolution * dimension <= 224, 'Voxel keysize must fit inisde a BIG_NUM (224-bits)'
+
+        # Ensure limits and wraps are the correct size
+        if limits is None:
+            limits = np.indices((2,dimension))[1]
+        if wraps is None:
+            wraps = [False] * 6
+        assert np.shape(limits) == (2, dimension)
+        assert len(wraps) == dimension
+
+
+        self.d = dimension                               # Dimension of the tree
         self.res = resolution                            # Highest tree depth
-        self.max_content = 2 ** (self.d * resolution)
         self.content = 0                                 # High dimensional analog of volume of occupied regions
-        self._root = TopologyNode(2 ** self.d)           # Root node
+        self._root = TopologyNode(self.d)                # Root node
         self.limits = limits                             # Minimum and maximum values for each dimension
         self.wraps = wraps
         # TODO: add a node_stack here (and maybe depth?) to make traversal easier?
@@ -51,7 +59,7 @@ class SparseBinaryTetrahexacontree:
         '''
         The string representation of a 64-tree.
         '''
-        return f'({2 ** self.d}-Tree [res={self.res}, content={100 * self.content / self.max_content}%])'
+        return f'({2 ** self.d}-Tree [res={self.res}, content={100 * self.content / self.max_content(0)}%])'
 
     def locate(self, points: npt.NDArray):
         '''
@@ -143,7 +151,7 @@ class SparseBinaryTetrahexacontree:
         Returns:
             A numpy array of shape (N,d) configuration, scaled from self.limits.
         '''
-        node_key = self.get_node(node_key, depth)
+        node_key, depth = self.get_node(node_key, depth)
 
         lower_bound_numerators = self.vector(node_key)
         upper_bound_numerators = 2**(self.res - depth) + lower_bound_numerators
@@ -156,27 +164,31 @@ class SparseBinaryTetrahexacontree:
 
     def max_content(self, depth):
         '''
-        Calculate the maximum content of a node at depth.
+        Calculate the maximum content of a node at this depth.
 
         Arguments:
             depth - The depth of a node in the tree. 
         '''
-        assert depth > 0 and depth <= self.res
+        assert depth >= 0 and depth <= self.res
         return 2 ** ((self.res - depth) * self.d)
 
-    def get_node(voxel, depth):
+    def get_node(voxel, depth=None):
         '''
         Get the node_key for the parent node containing voxel.
 
         Arguments:
             voxel - A voxel key using the first depth indices.
             depth - The depth of the node. This is equal to self.res by default
-                which sets a single voxel.
+                which gives the key for a single voxel.
 
         Returns:
             A voxel key using only the first depth indices.
         '''
-        return voxel & (2**(depth + 1) - 1)
+        if depth is None:
+            depth = self.res
+        assert depth >= 0 and depth <= self.res
+
+        return voxel & (2**(depth + 1) - 1), depth
 
     def _insert(self, parent, index, depth):
         '''
@@ -196,7 +208,7 @@ class SparseBinaryTetrahexacontree:
             return None
 
         if depth < leaf_depth:
-            next_node = TopologicalNode(self.d)
+            next_node = TopologyNode(self.d)
         else: 
             next_node = BinaryLeafNode(self.d)
         parent.children[index] = next_node
@@ -263,7 +275,7 @@ class SparseBinaryTetrahexacontree:
 
         return node_stack
 
-    def set(self, node_key, depth=self.res, node_stack=None):
+    def set(self, node_key, depth=None, node_stack=None):
         '''
         Set all of the voxels contained in node to true and update counts. 
         Performs merging operations on the tree if necessary.
@@ -281,9 +293,8 @@ class SparseBinaryTetrahexacontree:
             A new node_stack with the node of interest or its smallest full 
             ancestor on top.
         '''
-        assert depth > 0 and depth <= self.res
         leaf_depth = self.res - 1
-        node_key = self.get_node(node_key, depth)
+        node_key, depth = self.get_node(node_key, depth)
 
         # traverse from the last visited node to the voxel instead of walking from top
         if node_stack is None:
@@ -325,7 +336,7 @@ class SparseBinaryTetrahexacontree:
         '''
         raise NotImplementedError
 
-    def is_full(self, node_key, depth=self.res, node_stack=None):
+    def is_full(self, node_key, depth=None, node_stack=None):
         '''
         Check if a node is set.
 
@@ -343,8 +354,7 @@ class SparseBinaryTetrahexacontree:
             provided, also return a new node_stack with the node of interest or
             its smallest full ancestor on top.
         '''
-        assert depth > 0 and depth <= self.res
-        node_key = self.get_node(node_key, depth)
+        node_key, depth = self.get_node(node_key, depth)
         is_set = False
 
         # traverse from the last visited node to the voxel instead of walking from top
@@ -369,7 +379,7 @@ class SparseBinaryTetrahexacontree:
             return is_set, node_stack
         return is_set
 
-    def get_neighbors(self, node_key, directions, depth=self.res):
+    def get_neighbors(self, node_key, directions, depth=None):
         '''
         Get the neighbor(s) at the same depth of a node in the specified directions.
         
@@ -388,8 +398,7 @@ class SparseBinaryTetrahexacontree:
             valued voxel contained under this node. Keys will follow the order
             of direction flags (left-to-right).
         '''
-        assert depth > 0 and depth <= self.res
-        node_key = self.get_node(node_key, depth) # ensure indices of lowwe depth are ignored
+        node_key, depth = self.get_node(node_key, depth) # ensure indices of lowwe depth are ignored
 
         modulus = 2**(self.res + 1)
         inc = np.vstack((np.eye(self.d), -1 * np.eye(self.d))).astype(int)
@@ -401,7 +410,7 @@ class SparseBinaryTetrahexacontree:
         valid = np.logical_and(neighbors > 0, neighbors < modulus)
         return self.z_order(neighbors[np.all(valid, axis=1),:])
 
-    def get_smallest_neighbors(self, node_key, directions, depth=self.res):
+    def get_smallest_neighbors(self, node_key, directions, depth=None):
         '''
         Get all smallest neighbor(s) of a node in the specified directions.
         
@@ -420,7 +429,7 @@ class SparseBinaryTetrahexacontree:
             valued voxel contained under the neighboring node at depth
             node_depth.
         '''
-        node_key = self.get_node(node_key, depth)
+        node_key, depth = self.get_node(node_key, depth)
         # neighbors at the same tree depth
         queue = self.get_neighbors(node_key, directions, depth)
         # return early if already at voxels
@@ -521,40 +530,38 @@ class SparseBinaryTetrahexacontree:
         
         # Initialize the queue of nodes with the deepest unfilled ancestor
         node_stack = self._traverse([], seed_voxel)
-        queue = [(seed_voxel, len(node_stack))]
+        queue = [self.get_node(seed_voxel, len(node_stack))]
 
         # get all of the neighbors
         while len(queue) > 0:
             node_key, depth = queue.pop(0)
-            node_key = self.get_node(node_key, depth)
             if self.get(node_key, depth, node_stack):
                 continue
             queue += self.get_smallest_neighbors(node_key, directions, depth)
             node_stack = self.set(node_key, depth, node_stack)
 
-class TopologicalNode:
+class TopologyNode:
     '''
     A node in a sparse voxel tree data structure which contains topological 
     information.
     '''
 
-    def __init__(self, dim):
+    def __init__(self, dimension):
         '''
-        Create a Topological node in the tree.
+        Create a TopologyNode.
 
         Arguments:
-            dim - The number of children of this node.
+            dimension - The dimension of this node. It will have 2^d children.
         '''
-
-        self.dim = dim                              # dimension of the tree
-        self.children = [None] * (2**dim)           # A list of references to the children
-        self.values = np.zeros(2**dim, dtype=int)   # A list of values assiciated with each child
+        self.d = dimension                        # dimension of the tree
+        self.children = [None] * (2**self.d)           # A list of references to the children
+        self.values = np.zeros(2**self.d, dtype=int)   # A list of values assiciated with each child
 
     def __repr__(self):
         '''
         The string representation of a topological node.
         '''
-        return f'({2 ** self.dim}-Node [content={self.sum_values()}, values={self.values}])'
+        return f'({2 ** self.d}-Node [content={self.sum_values()}, values={self.values}])'
 
     def increment(self, index):
         '''
@@ -579,27 +586,26 @@ class TopologicalNode:
 
 class BinaryLeafNode:
     '''
-    A node in a sparse voxel tree data structure which contains binary 
-    data for a collection of leaves. Each leaf is represented with one bit.
+    A node in a sparse occupancy tree data structure which contains binary 
+    data for a collection of leaves. Each voxel is represented with one bit.
     '''
 
-    def __init__(self, dim):
+    def __init__(self, dimension):
         '''
-        Create a Binary Leaf node in the tree.
+        Create a BinaryLeafNode.
 
         Arguments:
-           
-            dim - The number of children of this node.
+            dimension - The dimension of this node. It will have 2^d children.
         '''
 
-        self.dim = dim                        # dimension of the tree
+        self.d = dimension                    # dimension of the tree
         self.values = 0                       # A list of values assiciated with each voxel
         
     def __repr__(self):
         '''
         The string representation of a leaf node.
         '''
-        return f'(BinaryLeafNode [content={self.sum_values()}, values={self.values:b}])'
+        return f'({2 ** self.d}-BinaryLeafNode [content={self.sum_values()}, values={self.values:b}])'
 
     def increment(self, index):
         '''
@@ -611,7 +617,6 @@ class BinaryLeafNode:
         Returns:
             The new sum of all values of children.
         '''
-
         self.values &= 1 << index
         return self.sum_values()
 

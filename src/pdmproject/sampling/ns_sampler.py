@@ -3,7 +3,7 @@ import numpy.typing as npt
 from numpy import dtype, ndarray
 
 from .base import SamplerBase
-from pdmproject.cspace.tree import SparseBinaryTetrahexacontree
+from pdmproject.cspace.tree import SparseOccupancyTree
 
 
 class NullSpaceSampler(SamplerBase):
@@ -44,10 +44,11 @@ class NullSpaceSampler(SamplerBase):
 
         self._lower_bound = lower_bound
         self._upper_bound = upper_bound
-        self.sample_space = SparseBinaryTetrahexacontree(resolution=resolution,
-                                                         limits=np.array([lower_bound,
-                                                                          upper_bound]),
-                                                         wraps=[False,False,True,False,False,False])
+        self.sample_space = SparseOccupancyTree(dimension=6,
+                                                resolution=resolution,
+                                                limits=np.array([lower_bound,
+                                                                 upper_bound]),
+                                                wraps=[False,False,True,False,False,False])
 
     def get_sample(self, sample_count=None):
         if sample_count is None:
