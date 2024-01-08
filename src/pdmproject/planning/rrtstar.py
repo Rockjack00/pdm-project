@@ -200,9 +200,11 @@ class RRTStar:
                     continue
                 min_cost_node = near_nodes[sorted_indices[1]]
 
+            # TODO: We could check multiple points if fail
             if self.check_collisions_between_nodes(
                 from_node=min_cost_node, to_node=new_node
             ):
+                # TODO: Add callback
                 continue
 
             new_node.parent = min_cost_node
