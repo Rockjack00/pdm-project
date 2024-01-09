@@ -1,13 +1,15 @@
+import functools
 from operator import itemgetter
+
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
-import matplotlib.pyplot as plt
-from tqdm import tqdm
-
-from ..sampling import SamplerBase
 from ..planning import Node
+from ..sampling import SamplerBase
 from . import metric
+
+from tqdm import tqdm
 
 
 class RRTStar:
@@ -157,18 +159,11 @@ class RRTStar:
 
         from_pose = from_node.get_7d_point()
 
+        vector = distance * unit_vector
+
         for i in range(number_of_checks):
-            # Check from the inside outwards
-            node = Node.from_array(
-                from_pose
-                + unit_vector
-                * (
-                    number_of_checks // 2
-                    + (2 * (i % 2) - 1) * ((i + 1) // 2)
-                    + number_of_checks % 2
-                )
-                * self.step_size
-            )
+            # Check the path using the van der Corput sequence
+            node = Node(from_pose + vector * van_der_corput(i + 1))
             if self.collision_checker(
                 node.get_7d_point(), perform_callback=perform_callback
             ):
@@ -222,9 +217,12 @@ class RRTStar:
                 #     self.node_list,
                 # ),
                 # key=itemgetter(0),
-                ((d, node) for node in self.node_list if (d := RRTStar.calculate_distance(node, new_node)) < self.radius),
+                (
+                    (d, node)
+                    for node in self.node_list
+                    if (d := RRTStar.calculate_distance(node, new_node)) < self.radius
+                ),
                 key=itemgetter(0),
-
             )
             if not near_nodes:
                 continue
@@ -348,3 +346,14 @@ class RRTStar:
         plt.ylabel("q2-axis")
         plt.grid(True)
         plt.show()
+
+
+@functools.cache
+# https://rosettacode.org/wiki/Van_der_Corput_sequence#Python
+def van_der_corput(n, base=2):
+    vdc, denom = 0, 1
+    while n:
+        denom *= base
+        n, remainder = divmod(n, base)
+        vdc += remainder / denom
+    return vdc

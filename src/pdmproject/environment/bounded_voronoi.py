@@ -1,20 +1,21 @@
-#https://stackoverflow.com/a/33602171
+# https://stackoverflow.com/a/33602171
 import sys
-from matplotlib import pyplot as plt
+
 import numpy as np
 import scipy as sp
-
 
 eps = sys.float_info.epsilon
 
 
-bounding_box = np.array([0., 1., 0., 1.]) # [x_min, x_max, y_min, y_max]
-
 def in_box(towers, bounding_box):
-    return np.logical_and(np.logical_and(bounding_box[0] <= towers[:, 0],
-                                         towers[:, 0] <= bounding_box[1]),
-                          np.logical_and(bounding_box[2] <= towers[:, 1],
-                                         towers[:, 1] <= bounding_box[3]))
+    return np.logical_and(
+        np.logical_and(
+            bounding_box[0] <= towers[:, 0], towers[:, 0] <= bounding_box[1]
+        ),
+        np.logical_and(
+            bounding_box[2] <= towers[:, 1], towers[:, 1] <= bounding_box[3]
+        ),
+    )
 
 
 def voronoi(towers, bounding_box):
@@ -30,15 +31,15 @@ def voronoi(towers, bounding_box):
     points_down[:, 1] = bounding_box[2] - (points_down[:, 1] - bounding_box[2])
     points_up = np.copy(points_center)
     points_up[:, 1] = bounding_box[3] + (bounding_box[3] - points_up[:, 1])
-    points = np.append(points_center,
-                       np.append(np.append(points_left,
-                                           points_right,
-                                           axis=0),
-                                 np.append(points_down,
-                                           points_up,
-                                           axis=0),
-                                 axis=0),
-                       axis=0)
+    points = np.append(
+        points_center,
+        np.append(
+            np.append(points_left, points_right, axis=0),
+            np.append(points_down, points_up, axis=0),
+            axis=0,
+        ),
+        axis=0,
+    )
     # Compute Voronoi
     vor = sp.spatial.Voronoi(points)
     # Filter regions
@@ -52,8 +53,12 @@ def voronoi(towers, bounding_box):
             else:
                 x = vor.vertices[index, 0]
                 y = vor.vertices[index, 1]
-                if not(bounding_box[0] - eps <= x and x <= bounding_box[1] + eps and
-                       bounding_box[2] - eps <= y and y <= bounding_box[3] + eps):
+                if not (
+                    bounding_box[0] - eps <= x
+                    and x <= bounding_box[1] + eps
+                    and bounding_box[2] - eps <= y
+                    and y <= bounding_box[3] + eps
+                ):
                     flag = False
                     break
         if region != [] and flag:
@@ -61,6 +66,7 @@ def voronoi(towers, bounding_box):
     vor.filtered_points = points_center
     vor.filtered_regions = regions
     return vor
+
 
 def centroid_region(vertices):
     # Polygon's signed area
@@ -70,7 +76,7 @@ def centroid_region(vertices):
     # Centroid's y
     C_y = 0
     for i in range(0, len(vertices) - 1):
-        s = (vertices[i, 0] * vertices[i + 1, 1] - vertices[i + 1, 0] * vertices[i, 1])
+        s = vertices[i, 0] * vertices[i + 1, 1] - vertices[i + 1, 0] * vertices[i, 1]
         A = A + s
         C_x = C_x + (vertices[i, 0] + vertices[i + 1, 0]) * s
         C_y = C_y + (vertices[i, 1] + vertices[i + 1, 1]) * s
@@ -79,41 +85,47 @@ def centroid_region(vertices):
     C_y = (1.0 / (6.0 * A)) * C_y
     return np.array([[C_x, C_y]])
 
+
 if __name__ == "__main__":
+    from matplotlib import pyplot as plt
+
     np.random.seed(42)
     world_size = (10, 10)
     bounding_box = [
-        -world_size[0]/2, world_size[0]/2, -world_size[1]/2, world_size[1]/2
+        -world_size[0] / 2,
+        world_size[0] / 2,
+        -world_size[1] / 2,
+        world_size[1] / 2,
     ]
-     # Generate random points
-    points = np.random.rand(10,2)
-    
-    # Rescale the points to the world size
-    points[:,0] *= world_size[0]
-    points[:,1] *= world_size[1]
+    # Generate random points
+    points = np.random.rand(10, 2)
 
-    points -= np.array(world_size)/2
+    # Rescale the points to the world size
+    points[:, 0] *= world_size[0]
+    points[:, 1] *= world_size[1]
+
+    points -= np.array(world_size) / 2
 
     vor = voronoi(points, bounding_box)
 
     fig = plt.figure()
     ax = fig.gca()
     # Plot initial points
-    ax.plot(vor.filtered_points[:, 0], vor.filtered_points[:, 1], 'b.')
+    ax.plot(vor.filtered_points[:, 0], vor.filtered_points[:, 1], "b.")
     # Plot ridges points
     for region in vor.filtered_regions:
         vertices = vor.vertices[region, :]
-        ax.plot(vertices[:, 0], vertices[:, 1], 'go')
+        ax.plot(vertices[:, 0], vertices[:, 1], "go")
     # Plot ridges
     for region in vor.filtered_regions:
         vertices = vor.vertices[region + [region[0]], :]
-        ax.plot(vertices[:, 0], vertices[:, 1], 'k-')
+        ax.plot(vertices[:, 0], vertices[:, 1], "k-")
     # Compute and plot centroids
     centroids = []
     for region in vor.filtered_regions:
         vertices = vor.vertices[region + [region[0]], :]
         centroid = centroid_region(vertices)
         centroids.append(list(centroid[0, :]))
-        ax.plot(centroid[:, 0], centroid[:, 1], 'r.')
+        ax.plot(centroid[:, 0], centroid[:, 1], "r.")
 
     plt.show()

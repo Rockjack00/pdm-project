@@ -4,10 +4,12 @@ from typing import ClassVar
 
 import numpy as np
 from matplotlib.axes import Axes
+
 from mpscenes.obstacles.box_obstacle import BoxObstacle
-from pybullet_utils.transformations import quaternion_from_euler
 
 from .wall import Wall
+
+from pybullet_utils.transformations import quaternion_from_euler
 
 
 def upgrade_to_gatewall(

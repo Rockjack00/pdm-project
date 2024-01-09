@@ -2,9 +2,11 @@ from dataclasses import KW_ONLY, InitVar, dataclass, field
 from math import nan
 from typing import Any, ClassVar, Optional
 
-from matplotlib.axes import Axes
 import numpy as np
+from matplotlib.axes import Axes
+
 from mpscenes.obstacles.box_obstacle import BoxObstacle
+
 from pybullet_utils.transformations import quaternion_from_euler
 
 
@@ -155,7 +157,7 @@ class Wall:
 
     def _plot2d(self, ax: Axes):
         ax.plot(
-            [self.start_point[0], self.end_point[0]],
-            [self.start_point[1], self.end_point[1]],
+            [self.start_point[0], self.end_point[0]],  # type: ignore
+            [self.start_point[1], self.end_point[1]],  # type: ignore
             color=self.color,
         )

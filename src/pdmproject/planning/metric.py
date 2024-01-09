@@ -1,6 +1,7 @@
-from numba import jit, float64
 import numpy as np
 import numpy.typing as npt
+
+from numba import float64, jit
 
 
 @jit(float64(float64, float64), nopython=True)

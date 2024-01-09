@@ -2,6 +2,7 @@ import time
 
 import matplotlib
 import numpy as np
+
 from urdfenvs.urdf_common.urdf_env import UrdfEnv
 
 matplotlib.use("TkAgg")
@@ -37,7 +38,7 @@ robots = [
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots, # type: ignore
+    robots=robots,  # type: ignore
     render=False,
 )
 
@@ -94,7 +95,7 @@ rrt_star.plot_path()
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots, # type: ignore
+    robots=robots,  # type: ignore
     render=True,
 )
 

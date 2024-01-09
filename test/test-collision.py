@@ -1,13 +1,15 @@
-import numpy as np
-from urdfenvs.urdf_common.urdf_env import UrdfEnv
+import time
+
 import matplotlib
+import numpy as np
 
 matplotlib.use("TkAgg")
 
-import time
 
-from pdmproject.environment import GateWall, PDMWorldCreator, PerimeterWall, Wall
+from urdfenvs.urdf_common.urdf_env import UrdfEnv
+
 from pdmproject.collision_checking import CollisionCheckRobot
+from pdmproject.environment import GateWall, PDMWorldCreator, PerimeterWall, Wall
 
 world_plan = PDMWorldCreator()
 world_plan.register(PerimeterWall((0, 0), 5, 7))
@@ -21,12 +23,14 @@ N_STEPS = 1000
 
 # Create Robot of type CollisionCheckRobot to allow for collision checking
 robots = [
-    CollisionCheckRobot(urdf="../demo/urdf/mobileManipulator.urdf"), #Fix Relative paths to urdf models
+    CollisionCheckRobot(
+        urdf="../demo/urdf/mobileManipulator.urdf"
+    ),  # Fix Relative paths to urdf models
 ]
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots,
+    robots=robots,  # type: ignore
     render=True,
 )
 
@@ -44,7 +48,7 @@ for _ in range(N_STEPS):
     x = np.random.randint(-25, 25) / 10
     y = np.random.randint(-35, 35) / 10
     robots[0].check_if_colliding(np.array([x, y, 0.0, 0.0, 0.0, 0.0, 0.0]))
-    time.sleep(.01)
+    time.sleep(0.01)
 
 time_2 = time.time()
 

@@ -38,3 +38,16 @@ dependencies = { file = ["requirements.txt"] }
 
 [tool.pytest.ini_options]
 testpaths = ["unittest"]
+
+[tool.ruff]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+section-order = ["future", "standard-library", "scipy", "simulator", "first-party", "local-folder", "third-party"]
+known-first-party = ["src", "pdmproject"]
+
+[tool.ruff.lint.isort.sections]
+# Group all scipy (numpy, matplotlib, etc) imports into a separate section.
+"scipy" = ["numpy", "scipy", "matplotlib"]
+# Group all simulator imports into a separate section.
+"simulator" = ["pybullet", "mpscenes", "urdfenvs"]

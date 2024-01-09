@@ -5,6 +5,7 @@ from typing import Iterable, Optional
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+
 from urdfenvs.urdf_common.urdf_env import UrdfEnv
 
 from pdmproject.environment.wall import Wall
@@ -25,7 +26,7 @@ class PDMWorldCreator:
 
     def register(self, wall: Wall) -> None:
         """Register a wall to this WorldCreator
-        
+
         Args:
             wall (Wall): The wall to be added to this world. The wall should not be added yet.
         """
@@ -49,7 +50,7 @@ class PDMWorldCreator:
         Args:
             env (UrdfEnv): The environment in which this world will be inserted
             regenerate (bool, optional): If the walls should be regenerated or not. Defaults to False.
-        """        
+        """
         for wall in self._walls:
             for wall_segment in wall._generate_wall_segments(regenerate=regenerate):
                 env.add_obstacle(wall_segment)

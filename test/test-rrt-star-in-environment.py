@@ -1,12 +1,13 @@
-import numpy as np
-from urdfenvs.urdf_common.urdf_env import UrdfEnv
 import matplotlib
+import numpy as np
+
+from urdfenvs.urdf_common.urdf_env import UrdfEnv
 
 matplotlib.use("TkAgg")
 import time
 
-from pdmproject.environment import GateWall, PDMWorldCreator, PerimeterWall, Wall
 from pdmproject.collision_checking import CollisionCheckRobot
+from pdmproject.environment import GateWall, PDMWorldCreator, PerimeterWall, Wall
 from pdmproject.planning import RRTStar
 from pdmproject.sampling import SimpleSampler
 
@@ -14,14 +15,32 @@ from pdmproject.sampling import SimpleSampler
 
 world_plan = PDMWorldCreator()
 world_plan.register(PerimeterWall(center=(0, 0), width=10, length=6))
-world_plan.register(GateWall(start_point=(2.0, 3.0), end_point=(2.0, -3.0), gate_point=(2.0, 1.5), gate_height=1.5, gate_width=0.6))
-world_plan.register(GateWall(start_point=(-2.0, 3.0), end_point=(-2.0, -3.0), gate_point=(-2.0, -1.5), gate_height=1.5, gate_width=0.6))
+world_plan.register(
+    GateWall(
+        start_point=(2.0, 3.0),
+        end_point=(2.0, -3.0),
+        gate_point=(2.0, 1.5),
+        gate_height=1.5,
+        gate_width=0.6,
+    )
+)
+world_plan.register(
+    GateWall(
+        start_point=(-2.0, 3.0),
+        end_point=(-2.0, -3.0),
+        gate_point=(-2.0, -1.5),
+        gate_height=1.5,
+        gate_width=0.6,
+    )
+)
 
 
 # Robot initialisation of type CollisionCheckRobot -> allows for collision checking
 
 robots = [
-    CollisionCheckRobot(urdf="../demo/urdf/mobileManipulator.urdf"), #Fix Relative paths to urdf models
+    CollisionCheckRobot(
+        urdf="../demo/urdf/mobileManipulator.urdf"
+    ),  # Fix Relative paths to urdf models
 ]
 
 
@@ -29,7 +48,7 @@ robots = [
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots, # type: ignore
+    robots=robots,  # type: ignore
     render=False,
 )
 
@@ -46,30 +65,47 @@ ob = env.reset(pos=pos0, vel=vel0)
 start_point = [-4.0, 0.0, 1.0, 1.0, 0.2, 0.2, 0.1]
 goal_point = [4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-search_area = (-5, 5, 
-            -3, 3, 
-            -np.pi, np.pi, 
-            -1/2 * np.pi, 1/2 * np.pi, 
-            -2/3 * np.pi, 2/3 * np.pi, 
-            -2/3 * np.pi, 2/3 * np.pi, 
-            0, 2 * np.pi)
-
-sampler = SimpleSampler(
-    lower_bound = tuple(i for i in search_area[::2]),
-    upper_bound = tuple(i for i in search_area[1::2])
+search_area = (
+    -5,
+    5,
+    -3,
+    3,
+    -np.pi,
+    np.pi,
+    -1 / 2 * np.pi,
+    1 / 2 * np.pi,
+    -2 / 3 * np.pi,
+    2 / 3 * np.pi,
+    -2 / 3 * np.pi,
+    2 / 3 * np.pi,
+    0,
+    2 * np.pi,
 )
 
-rrt_star = RRTStar(robot=robots[0], start=start_point, goal=goal_point, sampler=sampler, step_size=0.1, max_iter=1000, radius=5)
+sampler = SimpleSampler(
+    lower_bound=tuple(i for i in search_area[::2]),
+    upper_bound=tuple(i for i in search_area[1::2]),
+)
+
+rrt_star = RRTStar(
+    robot=robots[0],
+    start=start_point,
+    goal=goal_point,
+    sampler=sampler,
+    step_size=0.1,
+    max_iter=1000,
+    radius=5,
+)
 rrt_star.plan()
 env.close()
 rrt_star.plot_path()
 
 
-# Path in simulation 
+# Path in simulation
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots, # type: ignore
+    robots=robots,  # type: ignore
     render=True,
 )
 
@@ -83,5 +119,5 @@ while True:
     for pose in smooth_path:
         robots[0].set_pose(pose=pose)
         time.sleep(0.01)
-        
+
 env.close()

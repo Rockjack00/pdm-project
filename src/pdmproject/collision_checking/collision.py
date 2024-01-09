@@ -1,7 +1,8 @@
-import pybullet as p
-import numpy as np
 from typing import Collection
 
+import numpy as np
+
+import pybullet as p
 from urdfenvs.robots.generic_urdf import GenericUrdfReacher
 
 

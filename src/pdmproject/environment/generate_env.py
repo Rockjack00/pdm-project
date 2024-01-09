@@ -96,8 +96,8 @@ def generate_environment(
                 thickness=thickness,
             )
 
-            wall_set.add((tuple(vertices[idx]), tuple(vertices[idx + 1]))) # type: ignore
-            wall_set.add((tuple(vertices[idx + 1]), tuple(vertices[idx]))) # type: ignore
+            wall_set.add((tuple(vertices[idx]), tuple(vertices[idx + 1])))  # type: ignore
+            wall_set.add((tuple(vertices[idx + 1]), tuple(vertices[idx])))  # type: ignore
 
             if (  # Only add a gate if it fits on the wall
                 wall.wall_length >= minimum_gate_width

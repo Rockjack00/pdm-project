@@ -1,6 +1,8 @@
 import time
+
 # Run: for run in {1..10}; do python3 test-rrt-star-in-rand-environment-perf.py; done
 import numpy as np
+
 from urdfenvs.urdf_common.urdf_env import UrdfEnv
 
 from pdmproject.collision_checking import CollisionCheckRobot
@@ -39,7 +41,7 @@ robots = [
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots, # type: ignore
+    robots=robots,  # type: ignore
     render=False,
 )
 
@@ -70,7 +72,7 @@ search_area = (
     -2 / 3 * np.pi,
     2 / 3 * np.pi,
     0,
-    2*np.pi,
+    2 * np.pi,
 )
 
 sampler = SimpleSampler(

@@ -3,6 +3,7 @@ from typing import ClassVar, Optional
 
 import numpy as np
 from matplotlib.axes import Axes
+
 from mpscenes.obstacles.box_obstacle import BoxObstacle
 
 from .wall import Wall
@@ -106,7 +107,7 @@ class PerimeterWall(Wall):
                 [x - dx, x + dx],
                 [y - dy, y + dy],
                 color=color,
-            ) # type: ignore
+            )  # type: ignore
 
     @property
     def wall_length(self) -> float:
