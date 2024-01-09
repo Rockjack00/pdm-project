@@ -7,7 +7,7 @@ import numpy.typing as npt
 @dataclass(slots=True, eq=False)
 class Node:
     array: InitVar[npt.ArrayLike]
-    _array: np.ndarray[np.dtype[np.float64]] = field(init=False)
+    _array: npt.NDArray[np.float64] = field(init=False)
     parent: Optional["Node"] = field(init=False, default=None, compare=False)
     cost: float = field(init=False, default=0.0, compare=False)
 
@@ -16,7 +16,7 @@ class Node:
         assert self._array.shape == (7,)
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, array) -> "Node":
         """Create node object from array
 
         Args:
@@ -35,11 +35,11 @@ class Node:
         # Use array elements to initialize Node attributes
         return cls(array)
 
-    def get_7d_point(self):
+    def get_7d_point(self) -> npt.NDArray[np.float64]:
         return self._array
 
-    def __eq__(self, value: 'Node') -> bool:
-        return ((self._array == value._array)).all()
+    def __eq__(self, value: "Node") -> bool:
+        return (self._array == value._array).all()
 
     @property
     def q1(self) -> float:

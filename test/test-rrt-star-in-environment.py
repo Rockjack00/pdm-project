@@ -1,6 +1,8 @@
 import numpy as np
 from urdfenvs.urdf_common.urdf_env import UrdfEnv
+import matplotlib
 
+matplotlib.use("TkAgg")
 import time
 
 from pdmproject.environment import GateWall, PDMWorldCreator, PerimeterWall, Wall
@@ -27,7 +29,7 @@ robots = [
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots,
+    robots=robots, # type: ignore
     render=False,
 )
 
@@ -67,7 +69,7 @@ rrt_star.plot_path()
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots,
+    robots=robots, # type: ignore
     render=True,
 )
 

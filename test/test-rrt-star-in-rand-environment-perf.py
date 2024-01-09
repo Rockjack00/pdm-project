@@ -1,5 +1,5 @@
 import time
-# Run: for run in {1..10}; do python3 test-rrt-star-in-rand-environment-pref.py; done
+# Run: for run in {1..10}; do python3 test-rrt-star-in-rand-environment-perf.py; done
 import numpy as np
 from urdfenvs.urdf_common.urdf_env import UrdfEnv
 
@@ -39,7 +39,7 @@ robots = [
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots,
+    robots=robots, # type: ignore
     render=False,
 )
 

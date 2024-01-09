@@ -1,5 +1,8 @@
 import numpy as np
 from urdfenvs.urdf_common.urdf_env import UrdfEnv
+import matplotlib
+
+matplotlib.use("TkAgg")
 
 import time
 

@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 
-
 from pdmproject.environment import GateWall, PDMWorldCreator, PerimeterWall, Wall
 
 world_plan = PDMWorldCreator()

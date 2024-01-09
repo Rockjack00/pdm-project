@@ -1,8 +1,6 @@
-import matplotlib
+from operator import itemgetter
 import numpy as np
 import numpy.typing as npt
-
-matplotlib.use("TkAgg")
 
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -160,7 +158,17 @@ class RRTStar:
         from_pose = from_node.get_7d_point()
 
         for i in range(number_of_checks):
-            node = Node.from_array(from_pose + unit_vector * (i + 1) * self.step_size)
+            # Check from the inside outwards
+            node = Node.from_array(
+                from_pose
+                + unit_vector
+                * (
+                    number_of_checks // 2
+                    + (2 * (i % 2) - 1) * ((i + 1) // 2)
+                    + number_of_checks % 2
+                )
+                * self.step_size
+            )
             if self.collision_checker(
                 node.get_7d_point(), perform_callback=perform_callback
             ):
@@ -206,25 +214,27 @@ class RRTStar:
                 # The callback gets called by the collision checking function.
                 continue
 
-            near_nodes = [
-                node
-                for node in self.node_list
-                if RRTStar.calculate_distance(node, new_node) < self.radius
-            ]
+            near_nodes: list[tuple[float, Node]] = sorted(
+                # filter_map(
+                #     lambda node: (d, node)
+                #     if ((d := RRTStar.calculate_distance(node, new_node)) < self.radius)
+                #     else None,
+                #     self.node_list,
+                # ),
+                # key=itemgetter(0),
+                ((d, node) for node in self.node_list if (d := RRTStar.calculate_distance(node, new_node)) < self.radius),
+                key=itemgetter(0),
+
+            )
             if not near_nodes:
                 continue
 
-            distances = [
-                RRTStar.calculate_distance(node, new_node) for node in near_nodes
-            ]
-            sorted_indices = np.argsort(distances)  # type: ignore
-
-            min_cost_node = near_nodes[sorted_indices[0]]
+            min_cost_dist, min_cost_node = near_nodes[0]
 
             if min_cost_node == self.goal:
                 if len(near_nodes) < 1:
                     continue
-                min_cost_node = near_nodes[sorted_indices[1]]
+                min_cost_dist, min_cost_node = near_nodes[1]
 
             # TODO: We could check multiple points if fail
             if self.check_collisions_between_nodes(
@@ -234,9 +244,7 @@ class RRTStar:
                 continue
 
             new_node.parent = min_cost_node
-            new_node.cost = min_cost_node.cost + RRTStar.calculate_distance(
-                new_node, min_cost_node
-            )
+            new_node.cost = min_cost_node.cost + min_cost_dist
 
             if new_node == self.goal:
                 self.rewire(new_node)

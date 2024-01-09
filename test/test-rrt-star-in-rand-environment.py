@@ -4,6 +4,8 @@ import matplotlib
 import numpy as np
 from urdfenvs.urdf_common.urdf_env import UrdfEnv
 
+matplotlib.use("TkAgg")
+
 from pdmproject.collision_checking import CollisionCheckRobot
 from pdmproject.environment import PDMWorldCreator, generate_environment
 from pdmproject.planning import RRTStar
@@ -35,7 +37,7 @@ robots = [
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots,
+    robots=robots, # type: ignore
     render=False,
 )
 
@@ -92,7 +94,7 @@ rrt_star.plot_path()
 
 env = UrdfEnv(
     dt=0.01,
-    robots=robots,
+    robots=robots, # type: ignore
     render=True,
 )
 
