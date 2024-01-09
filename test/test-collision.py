@@ -5,7 +5,6 @@ import numpy as np
 
 matplotlib.use("TkAgg")
 
-
 from urdfenvs.urdf_common.urdf_env import UrdfEnv
 
 from pdmproject.collision_checking import CollisionCheckRobot

@@ -1,3 +1,4 @@
+"""This submodule contains the GateWall class."""
 import copy
 from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
@@ -18,7 +19,7 @@ def upgrade_to_gatewall(
     gate_width: float = 1.0,
     gate_height: float = 1.5,
 ) -> "GateWall":
-    """Upgrade a normal Wall to a GateWall
+    """Upgrade a normal Wall to a GateWall.
 
     Args:
         wall (Wall): The original Wall to upt a gate in
@@ -54,6 +55,8 @@ def upgrade_to_gatewall(
 
 @dataclass
 class GateWall(Wall):
+    """A Wall with a doorway or gate."""
+
     gate_point: tuple[float, float]
     _: KW_ONLY
     gate_height: float = 1.5

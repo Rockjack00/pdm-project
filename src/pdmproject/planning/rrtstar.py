@@ -1,3 +1,4 @@
+"""The submodule which contains the RRTStar class which implements a version of the RRT* algorithm."""
 import functools
 from operator import itemgetter
 
@@ -13,6 +14,11 @@ from tqdm import tqdm
 
 
 class RRTStar:
+    """An implmentation of the RRT* algrithm in Configuration space (C-space).
+
+    This implementation is generalized to allow for nullspace objects in C-space, which get discovered when collision checking.
+    """
+
     def __init__(
         self,
         robot,
@@ -23,7 +29,7 @@ class RRTStar:
         step_size=0.1,
         radius=1.0,
     ):
-        """Initialise RRTStar planner class
+        """Initialise RRTStar planner class.
 
         Args:
             robot (CollisionCheckRobot): Robot object for collision checking
@@ -68,14 +74,14 @@ class RRTStar:
 
     @staticmethod
     def angle_difference_rad(from_angle: float, to_angle: float) -> float:
-        """Calculates shortest distance between two angles
+        """Calculates shortest distance between two angles.
 
         Args:
-            from_angle (double): angle1 in rad
-            to_angle (double): angle2 in rad
+            from_angle (float): angle1 in rad
+            to_angle (float): angle2 in rad
 
         Returns:
-            double: angle difference in rad
+            float: angle difference in rad
         """
         return metric.angle_metric(from_angle, to_angle)
         # return (to_angle - from_angle + np.pi) % (2 * np.pi) - np.pi
@@ -85,7 +91,7 @@ class RRTStar:
 
     @staticmethod
     def calculate_distance(to_node: Node, from_node: Node) -> float:
-        """Calculate distance between two nodes
+        """Calculate distance between two nodes.
 
         Args:
             to_node (Node): point in C-space
@@ -107,7 +113,7 @@ class RRTStar:
 
     @staticmethod
     def unit_vector(from_node: Node, to_node: Node) -> npt.NDArray[np.float64]:
-        """Calculates a unit vector that goes from one node to another
+        """Calculates a unit vector that goes from one node to another.
 
         Args:
             from_node (Node): point in C-space
@@ -121,7 +127,7 @@ class RRTStar:
         )
 
     def get_nearest_node(self, new_node):
-        """Find the closest node to the new node
+        """Find the closest node to the new node.
 
         Args:
             new_node (Node): newly sampled node
@@ -141,7 +147,7 @@ class RRTStar:
     def check_collisions_between_nodes(
         self, from_node: Node, to_node: Node, perform_callback: bool = True
     ) -> bool:
-        """Check for collision between two nodes using step size from RRTStar class instance
+        """Check for collision between two nodes using step size from RRTStar class instance.
 
         Args:
             from_node (Node): starting node
@@ -151,7 +157,6 @@ class RRTStar:
         Returns:
             bool: True for collision, False otherwise
         """
-
         unit_vector = self.unit_vector(from_node=from_node, to_node=to_node)
 
         distance = RRTStar.calculate_distance(from_node, to_node)
@@ -172,12 +177,11 @@ class RRTStar:
         return False
 
     def rewire(self, new_node):
-        """Rewrite trees in the planner to minimize cost to newly added node
+        """Rewrite trees in the planner to minimize cost to newly added node.
 
         Args:
             new_node (Node): newly added node
         """
-
         for node in self.node_list[1:]:
             if node != new_node.parent:
                 cost = node.cost + RRTStar.calculate_distance(new_node, node)
@@ -191,14 +195,15 @@ class RRTStar:
                     new_node.cost = cost
 
     def plan(self):
-        """Perform steps for RRTStar algorithm:
-        Sample new node
-        Collision checking
-        Find near nodes in certain radius
-        Assign parent node
-        Rewire trees
-        """
+        """Perform steps for RRT* algorithm.
 
+        The following steps are performed according to the RRT* algorithm:
+         - Sample new node
+         - Collision checking
+         - Find near nodes in certain radius
+         - Assign parent node
+         - Rewire trees
+        """
         # FIXME: TEMPORARY HACK FOR GOALPOINT
         self.sampler.register_goal_hack(self.goal, probability=0.05)
 
@@ -252,10 +257,10 @@ class RRTStar:
             self.rewire(new_node)
 
     def _generate_path(self):
-        """Generate the path from start to goal node using nodes
+        """Generate the path from start to goal node using nodes.
 
         Returns:
-            tuple(list, ...): List of node values for each DOF
+            tuple[list, ...]: List of node values for each DOF
         """
         path = []
         current_node = self.goal
@@ -273,7 +278,7 @@ class RRTStar:
         return path_q1, path_q2, path_q3, path_q4, path_q5, path_q6, path_q7
 
     def get_smoother_path(self, path_step_size=0.01):
-        """Generate smooth path from start to goal node using nodes and intermediate steps. Used for robot visualisation
+        """Generate smooth path from start to goal node using nodes and intermediate steps. Used for robot visualisation.
 
         Args:
             path_step_size (float, optional): Intermediary step size. Defaults to 0.01.
@@ -303,8 +308,7 @@ class RRTStar:
         return np.array(path)
 
     def plot_path(self):
-        """Plot the path from start to goal node"""
-
+        """Plot the path from start to goal node."""
         path = self._generate_path()
 
         plt.figure(figsize=(10, 10))
@@ -349,8 +353,18 @@ class RRTStar:
 
 
 @functools.cache
-# https://rosettacode.org/wiki/Van_der_Corput_sequence#Python
-def van_der_corput(n, base=2):
+def van_der_corput(n: int, base=2) -> float:
+    """Calculate the nth element in the van der Corput sequence.
+
+    The implmentation is based on the Wikipedia description and [this code example](https://rosettacode.org/wiki/Van_der_Corput_sequence#Python).
+
+    Args:
+        n (int): The nth element of the sequence.
+        base (int, optional): The base in which to calculate the sequence. Defaults to 2.
+
+    Returns:
+        float: The nth element of the van der Corput sequence in the given base.
+    """
     vdc, denom = 0, 1
     while n:
         denom *= base

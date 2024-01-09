@@ -7,12 +7,13 @@ from urdfenvs.robots.generic_urdf import GenericUrdfReacher
 
 
 class CollisionCheckRobot(GenericUrdfReacher):
-    """CollisionCheckRobot inherits from GenericUrdfReacher
-    Adds collision checking functionality
+    """CollisionCheckRobot inherits from GenericUrdfReacher.
+
+    Adds collision checking functionality.
     """
 
     def __init__(self, urdf) -> None:
-        """Initialise robot class
+        """Initialise robot class.
 
         Args:
             urdf (string): Path to robot urdf file
@@ -49,7 +50,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
         self._integrated_velocities = vel
 
     def set_pose(self, pose: Collection) -> None:
-        """Set robot pose in simulation
+        """Set robot pose in simulation.
 
         Args:
             pose (Collection): robot pose to set. There should be self._n items of type float.
@@ -75,7 +76,6 @@ class CollisionCheckRobot(GenericUrdfReacher):
         Returns:
             bool: True if collision is detected, False otherwise.
         """
-
         self.set_pose(pose)
 
         contacts = p.getContactPoints(self._robot)
@@ -96,13 +96,12 @@ class CollisionCheckRobot(GenericUrdfReacher):
         return False
 
     def get_links_data(self) -> tuple[np.ndarray, np.ndarray]:
-        """Get point data for collisions
+        """Get point data for collisions.
 
         Returns:
             tuple[np.ndarray, np.ndarray]: first np.array returns link indices of links which are colliding
             second np.ndarray returns x y z position of collision points on the obstacle in world coordinates
         """
-
         contacts = p.getContactPoints(self._robot)
 
         obstacle_contacts = [

@@ -1,5 +1,6 @@
 # Sample Space Shrinking RRT* 
-![Example CI Badge](https://github.com/github/docs/actions/workflows/main.yml/badge.svg)
+ ![Example CI Badge](https://github.com/github/docs/actions/workflows/main.yml/badge.svg)
+ [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 _#TODO_: come up with a good name
 

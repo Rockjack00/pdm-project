@@ -40,10 +40,26 @@ dependencies = { file = ["requirements.txt"] }
 testpaths = ["unittest"]
 
 [tool.ruff]
-select = ["E4", "E7", "E9", "F", "I"]
+select = ["E4", "E7", "E9", "F", "I", "NPY", "D"]
+ignore = ["NPY002"]                               # Allow numpy.random legacy functions
+typing-modules = ["numpy.typing"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/{test,unittest}/*" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.isort]
-section-order = ["future", "standard-library", "scipy", "simulator", "first-party", "local-folder", "third-party"]
+section-order = [
+    "future",
+    "standard-library",
+    "scipy",
+    "simulator",
+    "first-party",
+    "local-folder",
+    "third-party",
+]
 known-first-party = ["src", "pdmproject"]
 
 [tool.ruff.lint.isort.sections]

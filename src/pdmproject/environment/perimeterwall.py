@@ -1,3 +1,4 @@
+"""This submodule contains the PerimeterWall class."""
 import copy
 from typing import ClassVar, Optional
 
@@ -10,6 +11,8 @@ from .wall import Wall
 
 
 class PerimeterWall(Wall):
+    """A Perimeter Wall to enclose the PDMWorld."""
+
     DEFAULT_NAME_TEMPLATE: ClassVar[str] = "perimeterwall-"
 
     def __init__(
@@ -22,6 +25,17 @@ class PerimeterWall(Wall):
         extra_data: Optional[dict] = None,
         simulation_name: Optional[str] = None,
     ) -> None:
+        """Creation of a PerimeterWall.
+
+        Args:
+            center (tuple[float, float]): The center of the perimeter.
+            width (float, optional): The width of the perimeter. Defaults to 10.0.
+            length (float, optional): The length of the perimeter. Defaults to 10.0.
+            thickness (float, optional): The thickness of hte perimeter walls. Defaults to 0.1.
+            wall_height (float, optional): The height of the perimeter walls. Defaults to 2.0.
+            extra_data (Optional[dict], optional): Optional extra data for the content dicts. Defaults to None.
+            simulation_name (Optional[str], optional): A custom simulation base name. Defaults to None.
+        """
         self.center = center
         self.width = width
         self.length = length
@@ -104,11 +118,18 @@ class PerimeterWall(Wall):
                 color = [0, 0, 0, 1]
 
             ax.plot(
-                [x - dx, x + dx],
-                [y - dy, y + dy],
+                [x - dx, x + dx],  # type: ignore
+                [y - dy, y + dy],  # type: ignore
                 color=color,
-            )  # type: ignore
+            )
 
-    @property
+    @Wall.wall_length.getter
     def wall_length(self) -> float:
+        """The wall length of this wall.
+
+        This does not make sense for this Wall-type, therefor a NotImplementedError is raised.
+
+        Raises:
+            NotImplementedError: This function cannot be interpreted correctly for this Wall-type.
+        """
         raise NotImplementedError("This does not make sense for this Wall-type.")

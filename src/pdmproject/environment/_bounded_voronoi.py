@@ -1,4 +1,4 @@
-# https://stackoverflow.com/a/33602171
+# Based on https://stackoverflow.com/a/33602171
 import sys
 
 import numpy as np
@@ -8,6 +8,15 @@ eps = sys.float_info.epsilon
 
 
 def in_box(towers, bounding_box):
+    """Check if a set of points is inside of the bouding box.
+
+    Args:
+        towers (NDArray[(N,2), float]): The Points to check.
+        bounding_box (Container[float]): The bounding box as (x_lower, x_upper, y_lower, y_upper).
+
+    Returns:
+        NDArray[(N,), bool]: An boolean array, with True for if the corresponding point is in the box.
+    """
     return np.logical_and(
         np.logical_and(
             bounding_box[0] <= towers[:, 0], towers[:, 0] <= bounding_box[1]

@@ -1,13 +1,66 @@
+from typing import Literal, overload
+
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
-from pdmproject.environment.bounded_voronoi import voronoi
+from pdmproject.environment._bounded_voronoi import voronoi
 from pdmproject.environment.gatewall import upgrade_to_gatewall
 from pdmproject.environment.wall import Wall
 
 from .pdmworld import PDMWorldCreator
 from .perimeterwall import PerimeterWall
+
+
+@overload
+def generate_environment(
+    n_rooms: int = 10,
+    width: float = 10,
+    length: float = 10,
+    thickness: float = 0.1,
+    wall_height: float = 3.5,
+    minimum_gate_width: float = 0.75,
+    maximum_gate_width_ratio: float = 0.8,
+    gate_height_bounds: tuple[float, float] = (0.6, 2.5),
+    *,
+    get_room_centers: Literal[True],
+    inspect: bool = False,
+) -> tuple[PDMWorldCreator, npt.NDArray[np.float64]]:
+    ...
+
+
+@overload
+def generate_environment(
+    n_rooms: int = 10,
+    width: float = 10,
+    length: float = 10,
+    thickness: float = 0.1,
+    wall_height: float = 3.5,
+    minimum_gate_width: float = 0.75,
+    maximum_gate_width_ratio: float = 0.8,
+    gate_height_bounds: tuple[float, float] = (0.6, 2.5),
+    *,
+    get_room_centers: Literal[False],
+    inspect: bool = False,
+) -> PDMWorldCreator:
+    ...
+
+
+@overload
+def generate_environment(
+    n_rooms: int = 10,
+    width: float = 10,
+    length: float = 10,
+    thickness: float = 0.1,
+    wall_height: float = 3.5,
+    minimum_gate_width: float = 0.75,
+    maximum_gate_width_ratio: float = 0.8,
+    gate_height_bounds: tuple[float, float] = (0.6, 2.5),
+    *,
+    get_room_centers: bool = False,
+    inspect: bool = False,
+) -> PDMWorldCreator:
+    ...
 
 
 # TODO: ADD ARGUMENTS
@@ -20,8 +73,27 @@ def generate_environment(
     minimum_gate_width: float = 0.75,
     maximum_gate_width_ratio: float = 0.8,
     gate_height_bounds: tuple[float, float] = (0.6, 2.5),
+    *,
+    get_room_centers: bool = False,
     inspect: bool = False,
-) -> PDMWorldCreator:
+) -> PDMWorldCreator | tuple[PDMWorldCreator, npt.NDArray[np.float64]]:
+    """Generate a random environment.
+
+    Args:
+        n_rooms (int, optional): The amount of points the voronoid is based on. This roughly corresponds with the amount of rooms. Defaults to 10.
+        width (float, optional): The width of the world. Defaults to 10.
+        length (float, optional): The length of the world. Defaults to 10.
+        thickness (float, optional): The thickness of the walls in the world. Defaults to 0.1.
+        wall_height (float, optional): The heigth of the walls in the world. Defaults to 3.5.
+        minimum_gate_width (float, optional): The minimum gate width that can be generated. Defaults to 0.75.
+        maximum_gate_width_ratio (float, optional): The maximum fraction of gate width to total wall length. Defaults to 0.8.
+        gate_height_bounds (tuple[float, float], optional): The lower and upper bounds of the gate height. Defaults to (0.6, 2.5).
+        get_room_centers (bool, optional): If true the random points on which the voronoid is based are returned. Defaults to False.
+        inspect (bool, optional): Enables plotting of a 2D representation of the generated world. Defaults to False.
+
+    Returns:
+        PDMWorldCreator | tuple[PDMWorldCreator, npt.NDArray[np.float64]]: The generated world and if get_room_centers is enabled the points with which the voronoid is generated.
+    """
     assert (
         gate_height_bounds[0] > 0
     ), "The minimum gate height should be larger than 0.0"
@@ -132,11 +204,14 @@ def generate_environment(
         world.plot2d(ax, fig)
         plt.show()
 
+    if get_room_centers:
+        return world, points
+
     return world
 
 
 def on_border(point: npt.ArrayLike, width: float, length: float) -> bool:
-    """Check if a point is on the border of an origin centered perimeter
+    """Check if a point is on the border of an origin centered perimeter.
 
     Args:
         point (npt.ArrayLike): A 2D point to check. (dtype=float)
