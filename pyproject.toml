@@ -13,13 +13,18 @@ authors = [
     { name = "Tyler Olson" },       # TODO: ADD EMAIL: #, email = "josiah_carberry@brown.edu"},
     { name = "Gijs Zijderveld" },   # TODO: ADD EMAIL: #, email = "josiah_carberry@brown.edu"},
 ]
-description = "Planning and Decision Making Project"
+description = "RO47005 - Planning and Decision Making final project"
 readme = "README.md"
 requires-python = ">=3.10"
 # keywords = ["one", "two"]
 # license = {text = "BSD-3-Clause"}
 classifiers = ["Programming Language :: Python :: 3"]
 dynamic = ["dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/Rockjack00/pdm-project"
+Repository = "https://github.com/Rockjack00/pdm-project.git"
+"Cognitive Robotics Department" = "https://www.tudelft.nl/me/over/afdelingen/cognitive-robotics-cor"
 
 # [project.optional-dependencies]
 # pdf = ["ReportLab>=1.2", "RXP"]
