@@ -1,4 +1,4 @@
-#!/usr/bin/env -S sh -c '"`dirname $0`/../venv/bin/python3" "$0" "$@"'
+#!/usr/bin/env python
 import argparse
 import time
 from pathlib import Path
