@@ -1,8 +1,9 @@
 #!/usr/bin/env -S sh -c '"`dirname $0`/../venv/bin/python3" "$0" "$@"'
 import argparse
-from pathlib import Path
 import time
+from pathlib import Path
 
+import matplotlib
 import numpy as np
 
 from urdfenvs.urdf_common import UrdfEnv
@@ -11,6 +12,8 @@ from pdmproject.collision_checking import CollisionCheckRobot
 from pdmproject.environment import generate_environment
 from pdmproject.planning.rrtstar import RRTStar
 from pdmproject.sampling import SamplerBase, SimpleSampler
+
+matplotlib.use("TkAgg")
 
 
 def create_std_sampler(lower_boud, upper_bound) -> SamplerBase:
@@ -24,19 +27,20 @@ def create_ns_sampler() -> SamplerBase:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("rrt-star-bench-single-run")
-    parser.add_argument(
-        "-i",
-        "--max-iterations",
-        type=int,
-        default=1000,
-        # TODO: HELP
-    )
+    # RRT* Options
     parser.add_argument(
         "-s",
         "--seed",
         type=int,
         default=42,
         help="Set the random seed for this test to a fixed value for reproducability.",
+    )
+    parser.add_argument(
+        "-i",
+        "--max-iterations",
+        type=int,
+        default=1000,
+        # TODO: HELP
     )
     parser.add_argument(
         "-NS",
@@ -47,25 +51,71 @@ if __name__ == "__main__":
         dest="sampler",
         help="Use the Nullspace Sampler, which excludes the Nullspace of collisions from future samples.",
     )
-    parser.add_argument("-vw", "--visualize-world", action="store_true")
-    parser.add_argument("-vp", "--visualize-path", action="store_true")
-    parser.add_argument("-vs", "--visualize-sim", action="store_true")
 
-    parser.add_argument("--URDF", type=Path)
+    # World options
+    parser.add_argument(
+        "-nr",
+        "--num-rooms",
+        type=int,
+        default=6,
+        dest="n_rooms",
+        help="The amount of room points to generate (Roughly corresponds to the amount of rooms), atleast 2. Default = 6",
+    )
+    parser.add_argument(
+        "-w",
+        "--width",
+        type=float,
+        default=10.0,
+        help="The width of the world. Default 10.0, must be atkeast 1.0",
+    )
+    parser.add_argument(
+        "-l",
+        "--length",
+        type=float,
+        default=6.0,
+        help="The length of the world. Default 6.0, must be atkeast 1.0",
+    )
+
+    # Visualization Options
+    parser.add_argument(
+        "-vw", "--visualize-world", action="store_true", help="Show the 2D world plan."
+    )
+    parser.add_argument(
+        "-vp", "--visualize-path", action="store_true", help="Show a 2D planned path."
+    )
+    parser.add_argument(
+        "-vs",
+        "--visualize-sim",
+        action="store_true",
+        help="Show the planned path being executed in the PyBullet window.",
+    )
+
+    # Simulation Options
+    parser.add_argument(
+        "--URDF", type=Path, help="An alternative path to the URDF file for the robot."
+    )
 
     args = parser.parse_args()
 
     np.random.seed(args.seed)
 
     # TODO: ADD PARAMETER:
-    length = 6
-    width = 10
+    length = args.length
+    assert (
+        length >= 1.0
+    ), "The world should be larger than 1.0 meters in the length direction."
+    width = args.width
+    assert (
+        width >= 1.0
+    ), "The world should be larger than 1.0 meters in the width direction."
 
+    assert args.n_rooms >= 2, "There should atleast be 2 rooms."
 
     world, centers = generate_environment(
-        n_rooms=6,
+        n_rooms=args.n_rooms,
         width=width,
         length=length,
+        wall_height=2.0,
         gate_height_bounds=(0.9, 1.75),
         minimum_gate_width=0.6,  # TEMP FOR VARIFICATION
         get_room_centers=True,
@@ -73,8 +123,8 @@ if __name__ == "__main__":
     )
 
     lower_bound = (
-        -width/2,
-        -length/2,
+        -width / 2,
+        -length / 2,
         -np.pi,
         -np.pi / 2,
         -2 / 3 * np.pi,
@@ -83,8 +133,8 @@ if __name__ == "__main__":
     )
 
     upper_bound = (
-        width/2,
-        length/2,
+        width / 2,
+        length / 2,
         np.pi,
         np.pi / 2,
         2 / 3 * np.pi,
@@ -100,7 +150,7 @@ if __name__ == "__main__":
     start_pose = np.zeros(7)
     start_pose[:2] = centers[point_idxs[0], :]
 
-    goal_pose = np.random.uniform(lower_bound, upper_bound) # type: ignore
+    goal_pose = np.random.uniform(lower_bound, upper_bound)  # type: ignore
     goal_pose[:2] = centers[point_idxs[1], :]
 
     # Select URDF based on argument or from Repo Location
@@ -133,7 +183,6 @@ if __name__ == "__main__":
 
     ob = env.reset(pos=start_pose, vel=np.zeros_like(start_pose))
 
-
     rrt_star = RRTStar(
         robot=robots[0],
         start=start_pose,
@@ -146,13 +195,11 @@ if __name__ == "__main__":
 
     rrt_star.plan()
     env.close()
-    
+
     if args.visualize_path:
         rrt_star.plot_path()
 
     if args.visualize_sim:
-        # Path in simulation
-
         env = UrdfEnv(
             dt=0.01,
             robots=robots,  # type: ignore
