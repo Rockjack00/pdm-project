@@ -317,16 +317,17 @@ class SparseOccupancyTree:
         node_stack = self._traverse(node_stack, node_key)
         
         # check if a voxel is set
-        if len(node_stack) == self.res:
+        if depth == self.res and len(node_stack) == self.res:
             is_set = node_stack[-2][1].values & (1 << node_stack[-1][0]) > 0
 
         # check if a node is filled
         else:
-            if len(node_stack) == 1:
+            parent_idx = min(depth, len(node_stack)) - 2
+            if parent_idx < 0:
                 parent = self._root
             else:
-                parent = node_stack[-2][1]
-            is_set = parent.values[node_stack[-1][0]] >= self.max_content(depth)
+                parent = node_stack[parent_idx][1]
+            is_set = parent.values[node_stack[parent_idx+1][0]] >= self.max_content(depth)
 
         if return_stack:
             return is_set, node_stack
@@ -437,22 +438,28 @@ class SparseOccupancyTree:
                 which finds neighbors at the voxel level.
 
         Returns:
-            Voxel keys for all the existing neighbors in the specified 
-            directions at the same depth as this node. Keys point to the minimum 
-            valued voxel contained under this node. Order of the neighbors will
-            be the reverse of direction flags (right-to-left).
+            A list of 2-tuples of (node_key, direction) for all the possible
+            neighbors at the same depth as this node in the specified
+            directions where node_key points to the minimum valued voxel
+            contained under the neighboring node at depth node_depth. Order of
+            the neighbors will be the reverse of direction flags
+            (right-to-left).
         '''
         node_key, depth = self.make_node(node_key, depth) # ensure indices of lowwest depth are ignored
 
         modulus = 2**self.res
         inc = np.vstack((np.eye(self.d), -1 * np.eye(self.d))).astype(int)
+        flags = 1 << np.arange(self.d * 2)
 
         inc <<= self.res - depth
         vector = self.vector(node_key) 
-        neighbors = vector + inc[(directions & (1 << np.arange(self.d * 2))) > 0]
+        selected = (directions & flags) > 0
+        neighbors = vector + inc[selected]
         neighbors[:,self.wraps] %= modulus
-        valid = np.logical_and(neighbors >= 0, neighbors < modulus)
-        return self.z_order(neighbors[np.all(valid, axis=1),:])
+        valid = np.all(np.logical_and(neighbors >= 0, neighbors < modulus), axis=1)
+        node_keys = self.z_order(neighbors[valid,:])
+        selected_directions = flags[selected]
+        return list(zip(node_keys, selected_directions[valid]))
 
     # TODO: what to do if the requested node doesn't exist?
     # right now: assumes it does and gives the neighbors it would have
@@ -470,9 +477,9 @@ class SparseOccupancyTree:
                 which assumes node_key is a voxel key.
 
         Returns:
-            A list of 2-tuples of (node_key, node_depth) for all the neighbors
-            in the specified directions where node_key points to the minimum
-            valued voxel contained under the neighboring node at depth
+            A list of 2-tuples of (node_key, node_depth) for all the existing
+            neighbors in the specified directions where node_key points to the
+            minimum valued voxel contained under the neighboring node at depth
             node_depth.
         '''
         node_key, depth = self.make_node(node_key, depth)
@@ -481,21 +488,18 @@ class SparseOccupancyTree:
 
         neighbors = []
         node_stack = []
-        direction_flags = (directions & (1 << np.arange(self.d * 2))) > 0
-        for i in range(len(queue)):
-            neighbor = queue[i]
+        for neighbor, direction in queue:
             node_stack = self._traverse(node_stack, neighbor)
 
             i = 0
             while i < depth and node_stack[i][1] is not None:
                 i += 1
             if i < depth:
-                # neighbor is larger
-                neighbors.append((neighbor, i+1))
+                # neighbor is same size or larger
+                neighbors.append(self.make_node(neighbor, i+1))
             else:
                 # recursively get any smaller neighbors
-                neighbors += self._get_smallest_neighbors(node_stack[:i], 
-                                                          direction_flags[i])
+                neighbors += self._get_smallest_neighbors(node_stack[:i], direction)
         return neighbors
 
     def _assemble_voxel_key(self, node_stack):
@@ -539,22 +543,32 @@ class SparseOccupancyTree:
             minimum valued voxel contained under the descendant at depth
             node_depth.
         '''
+        depth = len(node_stack)
         # Base case: voxel level or empty child
         if node_stack[-1][1] is None:
-            return [(self._assemble_voxel_key(node_stack), len(node_stack))]
+            return [(self._assemble_voxel_key(node_stack), depth)]
 
         # Otherwise get children from lower levels
+        children = []
         if direction < (2 ** self.d):
-            branch = 0 # direction is + so get the - children
+            # direction is + so get the - children
+            children = np.array([i for i in range(2**self.d) if (i & direction) == 0])
         else:
-            branch = 1 # direction is - so get the + children
+            # direction is - so get the + children
             direction >>= self.d
-        children = np.array([i for i in range(2**self.d) if (i & direction) == branch])
+            children = np.array([i for i in range(2**self.d) if (i & direction) > 0])
+
+        #if depth == 4:
+        #    breakpoint()
         
         neighbors = []
         for child_idx in children:
-            child = node_stack[-1][1].children[child_idx]
-            neighbors += self._get_smallest_neighbors(node_stack + (child_idx, child), direction)
+            if depth < 4:
+                child = node_stack[-1][1].children[child_idx]
+            else:
+                # this is a leaf node so its children must be voxels
+                child = None
+            neighbors += self._get_smallest_neighbors(node_stack + [(child_idx, child)], direction)
         return neighbors
 
     # TODO: parallelize this
@@ -578,7 +592,8 @@ class SparseOccupancyTree:
         # get all of the neighbors
         while len(queue) > 0:
             node_key, depth = queue.pop(0)
-            if self.is_full(node_key, depth, node_stack):
+            is_set, node_stack = self.is_full(node_key, depth, node_stack)
+            if is_set:
                 continue
             queue += self.get_smallest_neighbors(node_key, directions, depth)
             node_stack = self.set(node_key, depth, node_stack)
