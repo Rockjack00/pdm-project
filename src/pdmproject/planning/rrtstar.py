@@ -307,7 +307,7 @@ class RRTStar:
 
         return np.array(path)
 
-    def plot_path(self):
+    def plot_path(self, block: bool = True):
         """Plot the path from start to goal node."""
         path = self._generate_path()
 
@@ -349,7 +349,7 @@ class RRTStar:
         plt.xlabel("q1-axis")
         plt.ylabel("q2-axis")
         plt.grid(True)
-        plt.show()
+        plt.show(block=block)
 
 
 @functools.cache
