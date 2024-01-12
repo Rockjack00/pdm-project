@@ -340,6 +340,8 @@ def main_single_run():
     print("explored nodes @ Path 1:", rrt_star.explored_nodes_till_first_path)
     print("# iterations @ Path X:", rrt_star.num_iter)
     print("explored nodes @ Path X:", rrt_star.explored_nodes)
+    print("Collision count:", rrt_star.collision_count)
+    print("path length:", rrt_star.path_length)
 
     if args.visualize_path:
         rrt_star.plot_path()

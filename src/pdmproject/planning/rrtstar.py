@@ -1,5 +1,6 @@
 """The submodule which contains the RRTStar class which implements a version of the RRT* algorithm."""
 import functools
+from itertools import pairwise
 from operator import itemgetter
 from typing import Optional
 
@@ -60,18 +61,23 @@ class RRTStar:
         # Variables for keeping track of the metrics
         self._num_iter_till_first_path: Optional[int] = None
         self._explored_nodes_till_first_path: Optional[int] = None
+        self._collision_count: int = 0
         self._planned = (
             0  # The amount of time plan has been used on this RRTStar instance.
         )
 
     def collision_checker(
-        self, pose: npt.NDArray[np.float64], perform_callback: bool = True
+        self,
+        pose: npt.NDArray[np.float64],
+        perform_callback: bool = True,
+        count_collisions: bool = False,
     ) -> bool:
         """Check if the specified pose is colliding.
 
         Args:
             pose (np.ndarray[np.float64]): The pose of the robot in C-space, which will be checked.
             perform_callback (bool, optional): If the sampler callback should be called. Defaults to True.
+            count_collisions (bool, optional): If the amount of rejected nodes should be added up. Defaults to False.
 
         Returns:
             bool: True for collision, False otherwise
@@ -80,6 +86,9 @@ class RRTStar:
 
         if perform_callback and is_colliding:
             self.sampler.callback(pose, self.robot)
+
+        if count_collisions and is_colliding:
+            self._collision_count += 1
 
         return is_colliding
 
@@ -145,7 +154,11 @@ class RRTStar:
         return nearest_node
 
     def check_collisions_between_nodes(
-        self, from_node: Node, to_node: Node, perform_callback: bool = True
+        self,
+        from_node: Node,
+        to_node: Node,
+        perform_callback: bool = True,
+        count_collisions: bool = False,
     ) -> bool:
         """Check for collision between two nodes using step size from RRTStar class instance.
 
@@ -153,6 +166,7 @@ class RRTStar:
             from_node (Node): starting node
             to_node (Node): end node
             perform_callback (bool, optional): If the sampler callback should be called. Defaults to None
+            count_collisions (bool, optional): If the amount of rejected nodes should be added up. Defaults to False.
 
         Returns:
             bool: True for collision, False otherwise
@@ -170,7 +184,9 @@ class RRTStar:
             # Check the path using the van der Corput sequence
             node = Node(from_pose + vector * van_der_corput(i + 1))
             if self.collision_checker(
-                node.get_7d_point(), perform_callback=perform_callback
+                node.get_7d_point(),
+                perform_callback=perform_callback,
+                count_collisions=count_collisions,
             ):
                 return True  # Collision on path
 
@@ -212,7 +228,9 @@ class RRTStar:
         for i in tqdm(range(self.max_iter)):
             new_node = self.sampler.get_node_sample()
 
-            if self.collision_checker(new_node.get_7d_point(), perform_callback=True):
+            if self.collision_checker(
+                new_node.get_7d_point(), perform_callback=True, count_collisions=True
+            ):
                 # The callback gets called by the collision checking function.
                 continue
 
@@ -236,7 +254,10 @@ class RRTStar:
 
             # TODO: We could check multiple points if fail
             if self.check_collisions_between_nodes(
-                from_node=min_cost_node, to_node=new_node, perform_callback=True
+                from_node=min_cost_node,
+                to_node=new_node,
+                perform_callback=True,
+                count_collisions=True,
             ):
                 # The callback gets called by the collision checking function.
                 continue
@@ -351,10 +372,6 @@ class RRTStar:
         plt.grid(True)
         plt.show(block=block)
 
-    # def path(self) -> Optional[list]:
-    #     if self.has_found_path():
-    #         self._generate_path()
-
     def _node_path(self) -> Optional[list[Node]]:
         """Get the path interms of Nodes if any.
 
@@ -416,6 +433,28 @@ class RRTStar:
             bool: True if a path has been found. False otherwise.
         """
         return self.goal.parent is not None
+
+    @property
+    def collision_count(self) -> int:
+        """The amount collisions found during the adding of new Nodes.
+
+        Returns:
+            int: The new Node collision count.
+        """
+        return self._collision_count
+
+    @property
+    def path_length(self) -> Optional[float]:
+        """Get the length of the current found path in Configuration-space.
+
+        Returns:
+            Optional[float]: The cost of the found path provided that a path has been found.
+        """
+        if self.has_found_path():
+            return sum(
+                RRTStar.calculate_distance(from_node=from_node, to_node=to_node)
+                for from_node, to_node in pairwise(self._node_path())  # type: ignore
+            )
 
     @property
     def radius(self) -> float:
