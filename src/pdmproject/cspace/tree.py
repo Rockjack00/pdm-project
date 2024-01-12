@@ -643,6 +643,17 @@ class TopologyNode:
         '''
         return np.sum(self.values)
 
+    def get_values(self):
+        '''
+        Get a list of all values of the children
+        '''
+        return self.values
+
+    def get_child(self, index):
+        '''
+        Get the child at index
+        '''
+        return self.children[index]
 
 # TODO: define __get__ and __set__ for brackets to modify children
 class BinaryLeafNode:
@@ -686,6 +697,18 @@ class BinaryLeafNode:
         Get the sum of all values of the children
         '''
         return self.values.bit_count()
+
+    def get_values(self):
+        '''
+        Get a list of all values of the children
+        '''
+        return (self.values & (1 << np.arange(2**self.d)) > 0) * 1
+
+    def get_child(self, index):
+        '''
+        Always returns none.
+        '''
+        return None
 
 if __name__ == "__main__":
     pass
