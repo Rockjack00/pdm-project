@@ -4,7 +4,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy import dtype, ndarray
 
-from .base import SamplerBase
+from . import SamplerBase
 
 
 class SimpleSampler(SamplerBase):
@@ -29,7 +29,7 @@ class SimpleSampler(SamplerBase):
             np.pi,
         ),
     ) -> None:
-        """Create a uniform SimpleSampler
+        """Create a uniform SimpleSampler.
 
         Args:
             lower_bound (npt.ArrayLike(len == 7), optional): The lower bound of this Sampler. Defaults to ( -5, -5, -np.pi, -np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi, ).

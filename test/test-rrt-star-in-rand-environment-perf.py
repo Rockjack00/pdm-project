@@ -1,5 +1,3 @@
-import time
-
 # Run: for run in {1..10}; do python3 test-rrt-star-in-rand-environment-perf.py; done
 import numpy as np
 
@@ -13,11 +11,6 @@ from pdmproject.sampling import SimpleSampler
 np.random.seed(42)
 
 # World Building
-
-# world_plan =PDMWorldCreator()
-# world_plan.register(PerimeterWall(center=(0, 0), width=10, length=6))
-# world_plan.register(GateWall(start_point=(2.0, 3.0), end_point=(2.0, -3.0), gate_point=(2.0, 1.5), gate_height=1.5, gate_width=0.6))
-# world_plan.register(GateWall(start_point=(-2.0, 3.0), end_point=(-2.0, -3.0), gate_point=(-2.0, -1.5), gate_height=1.5, gate_width=0.6))
 
 world_plan: PDMWorldCreator = generate_environment(
     n_rooms=6,

@@ -8,15 +8,15 @@ from ..planning import Node
 
 
 class SamplerBase(ABC):
-    """The abstact base class for Samplers"""
+    """The abstact base class for Samplers."""
 
     @abstractmethod
     def get_sample(
         self, sample_count: Optional[int] = None
     ) -> np.ndarray[tuple[int, Literal[7]] | tuple[Literal[7]], np.dtype[np.float64]]:
-        """Get a random sample
+        """Get a random sample.
 
-        Args
+        Args:
             sample_count (Optional[int], optional): The amount of samples to generate. Defaults to None (7D array)
 
         Returns:
@@ -25,7 +25,7 @@ class SamplerBase(ABC):
         pass
 
     def get_node_sample(self) -> Node:
-        """Sample a random Node
+        """Sample a random Node.
 
         Returns:
             Node: The newly sampled Node

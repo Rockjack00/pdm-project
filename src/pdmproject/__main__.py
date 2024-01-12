@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python  # noqa: D100
 import argparse
 import time
 from itertools import pairwise
@@ -14,19 +14,21 @@ from urdfenvs.urdf_common import UrdfEnv
 from pdmproject.collision_checking import CollisionCheckRobot
 from pdmproject.environment import PDMWorldCreator, generate_environment
 from pdmproject.planning.rrtstar import RRTStar
-from pdmproject.sampling import SamplerBase, SimpleSampler
+from pdmproject.sampling import NullSpaceSampler, SamplerBase, SimpleSampler
 
 
-def create_std_sampler(lower_boud, upper_bound) -> SamplerBase:
-    # TODO: ADD ARGS
-    return SimpleSampler(lower_boud, upper_bound)
+def create_std_sampler(lower_bound, upper_bound) -> SamplerBase:
+    """Create a SimpleSampler."""
+    return SimpleSampler(lower_bound, upper_bound)
 
 
-def create_ns_sampler() -> SamplerBase:
-    raise NotImplementedError()
+def create_ns_sampler(lower_bound, upper_bound) -> SamplerBase:
+    """Create a NullSpaceSampler."""
+    return NullSpaceSampler(lower_bound, upper_bound)
 
 
 def add_rrt_arguments(parser: argparse.ArgumentParser):
+    """Add RRT* arguments to the ArgumentParser."""
     group = parser.add_argument_group("RRT* options")
     group.add_argument(
         "-s",
@@ -69,6 +71,7 @@ def add_rrt_arguments(parser: argparse.ArgumentParser):
 
 
 def add_world_arguments(parser: argparse.ArgumentParser):
+    """Add World arguments to the ArgumentParser."""
     group = parser.add_argument_group("World options")
     group.add_argument(
         "-nr",
@@ -96,6 +99,7 @@ def add_world_arguments(parser: argparse.ArgumentParser):
 
 
 def add_visualization_arguments(parser: argparse.ArgumentParser):
+    """Add Visualization arguments to the ArgumentParser."""
     group = parser.add_argument_group("Visualization options")
     group.add_argument(
         "-vw", "--visualize-world", action="store_true", help="Show the 2D world plan."
@@ -128,6 +132,7 @@ def create_world_and_bounds(
     tuple[float, float, float, float, float, float, float],
     tuple[float, float, float, float, float, float, float],
 ]:
+    """Creates the World (Bounds), based on the arguments."""
     assert (
         length >= 1.0
     ), "The world should be larger than 1.0 meters in the length direction."
@@ -170,6 +175,7 @@ def create_world_and_bounds(
 
 
 def get_urdf_path(urdf: Optional[Path]) -> Path:
+    """Retrieves the URDF file path."""
     # Select URDF based on argument or from Repo Location
     repo_path = Path(__file__).parents[2]
 
@@ -194,6 +200,7 @@ def plan_rrt_star(
     radius: float,
     shrinking_radius: bool,
 ) -> RRTStar:
+    """Create the RRTStar object and plan the route."""
     assert (
         radius >= max(sampler.upper_bound[0], sampler.upper_bound[1]) / 2
     ), "The radius must be larger than or equal to 1/4 the largest world size (width or length)"
@@ -232,6 +239,7 @@ def visualize_rrt_path(
     rrt_star: RRTStar,
     start_pose: npt.NDArray[np.float64],
 ):
+    """Visualize the path in the simulator."""
     env = UrdfEnv(
         dt=0.01,
         robots=robots,  # type: ignore
@@ -257,6 +265,7 @@ def visualize_rrt_paths(
     rrt_stars: list[RRTStar],
     poses: list[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]],
 ):
+    """Visualize the combined path of all RRT* planned path."""
     env = UrdfEnv(
         dt=0.01,
         robots=robots,  # type: ignore
@@ -279,6 +288,7 @@ def visualize_rrt_paths(
 
 
 def present_result(rrt_star: RRTStar, args):
+    """Present the results of a single RRT* planner."""
     radius_text = (
         "a shrinking radius"
         if rrt_star.shrink_radius
@@ -316,6 +326,7 @@ def present_result(rrt_star: RRTStar, args):
 
 
 def present_results(rrt_stars: list[RRTStar], args):
+    """Present the results of a multiple RRT* planners."""
     radius_text = (
         "a shrinking radius"
         if args.shrinking_radius
@@ -349,7 +360,7 @@ def present_results(rrt_stars: list[RRTStar], args):
         )
 
         print(
-            f" \033[92;1m[SUCCES]\033[0m The final total Path length was {sum(rrt_star.path_length or 0 for rrt_star in rrt_stars): 5.02f}"
+            f" \033[92;1m[SUCCES]\033[0m The final total Path length was {sum(rrt_star.path_length or 0 for rrt_star in rrt_stars): 5.02f}"  # type: ignore
         )
         print(
             f"\tPER RUN: [{', '.join('%5.02f' % rrt_star.path_length for rrt_star in rrt_stars)}]"
@@ -375,7 +386,7 @@ def present_results(rrt_stars: list[RRTStar], args):
     )
 
 
-def main_single_run():
+def main_single_run():  # noqa: D103
     parser = argparse.ArgumentParser("rrt-star-bench-single-run")
     # RRT* Options
     add_rrt_arguments(parser)
@@ -441,7 +452,7 @@ def main_single_run():
         visualize_rrt_path(robots, world, rrt_star, start_pose)
 
 
-def main_multi_run():
+def main_multi_run():  # noqa: D103
     parser = argparse.ArgumentParser("rrt-star-bench-multi-run")
     # RRT* Options
     add_rrt_arguments(parser)

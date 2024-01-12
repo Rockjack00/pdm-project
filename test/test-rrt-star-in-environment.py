@@ -7,7 +7,7 @@ matplotlib.use("TkAgg")
 import time
 
 from pdmproject.collision_checking import CollisionCheckRobot
-from pdmproject.environment import GateWall, PDMWorldCreator, PerimeterWall, Wall
+from pdmproject.environment import GateWall, PDMWorldCreator, PerimeterWall
 from pdmproject.planning import RRTStar
 from pdmproject.sampling import SimpleSampler
 
