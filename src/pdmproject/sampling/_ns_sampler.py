@@ -65,12 +65,6 @@ class NullSpaceSampler(SamplerBase):
             wraps=[False, False, True, False, False, False],
         )
 
-        for i in range(2**dimension):
-            voxel = i
-            if i in (0, 3):
-                continue
-            self.sample_space.set(voxel, depth=1)
-
     def get_sample(self, sample_count=None):
         if sample_count is None:
             sample_count = 1
@@ -86,8 +80,8 @@ class NullSpaceSampler(SamplerBase):
         )
 
         samples = np.hstack((cs_samples, last_samples))
+
         assert samples.shape == (sample_count, 7)
-        print(self.sample_space._root.sum_values())
         return samples.T.squeeze(-1)
 
     def _get_cspace_sample(self):
