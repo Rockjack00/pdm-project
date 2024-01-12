@@ -52,6 +52,19 @@ def add_rrt_arguments(parser: argparse.ArgumentParser):
         dest="sampler",
         help="Use the Nullspace Sampler, which excludes the Nullspace of collisions from future samples. (default: Simple Sampler)",
     )
+    group.add_argument(
+        "-r",
+        "--radius",
+        type=float,
+        default=5.0,
+        help="The connecting radius for nodes. Used as the initial radius at n=2 if shrinking-radius is enabled. This value must be positive and of a large enough size (atleast max(width,length)/4). (default: %(default)s)",
+    )
+    group.add_argument(
+        "-sr",
+        "--shrinking-radius",
+        action="store_true",
+        help="Enable to let the connection radius shrink with the number of sampled nodes. (default: %(default)s)",
+    )
     return group
 
 
@@ -178,7 +191,13 @@ def plan_rrt_star(
     start_pose: npt.NDArray[np.float64],
     goal_pose: npt.NDArray[np.float64],
     max_iterations: int,
+    radius: float,
+    shrinking_radius: bool,
 ) -> RRTStar:
+    assert (
+        radius >= max(sampler.upper_bound[0], sampler.upper_bound[1]) / 2
+    ), "The radius must be larger than or equal to 1/4 the largest world size (width or length)"
+
     # Environment initialisation
     env = UrdfEnv(
         dt=0.01,
@@ -197,7 +216,8 @@ def plan_rrt_star(
         sampler=sampler,
         step_size=0.1,
         max_iter=max_iterations,
-        radius=5,
+        radius=radius,
+        shrinking_radius=shrinking_radius,
     )
 
     rrt_star.plan()
@@ -230,11 +250,12 @@ def visualize_rrt_path(
             time.sleep(0.01)
     env.close()
 
+
 def visualize_rrt_paths(
     robots: list[CollisionCheckRobot],
     world: PDMWorldCreator,
     rrt_stars: list[RRTStar],
-    poses: list[tuple[npt.NDArray[np.float64],npt.NDArray[np.float64]]],
+    poses: list[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]],
 ):
     env = UrdfEnv(
         dt=0.01,
@@ -246,13 +267,113 @@ def visualize_rrt_paths(
     env.reconfigure_camera(5.0, 0.0, -89.99, (0, 0, 0))
     _ = env.reset(pos=poses[0][0], vel=np.zeros_like(poses[0][0]))
 
-    smooth_path = np.concatenate([rrt_star.get_smoother_path(path_step_size=0.01) for rrt_star in rrt_stars])
+    smooth_path = np.concatenate(
+        [rrt_star.get_smoother_path(path_step_size=0.01) for rrt_star in rrt_stars]
+    )
 
     while True:
         for pose in smooth_path:
             robots[0].set_pose(pose=pose)
             time.sleep(0.01)
     env.close()
+
+
+def present_result(rrt_star: RRTStar, args):
+    radius_text = (
+        "a shrinking radius"
+        if rrt_star.shrink_radius
+        else f"a constant radius of {rrt_star.radius}m"
+    )
+    print("\n")
+    print(
+        "\033[2m"
+        + f" \033[0;95m[Single run]\033[0m RRT* with {type(rrt_star.sampler).__name__} and {radius_text} \033[2m".center(
+            80 + 10 + 5, "="
+        )
+        + "\033[0m"
+    )
+    print(
+        f" \033[94m[RUN INFO]\033[0m SEED: {args.seed: 5} | N_ROOMS: {args.n_rooms: 2} | WIDTH: {args.width:2.01f} | LENGTH: {args.length:2.01f}"
+    )
+    print(f" \033[94m[RUN INFO]\033[0m Iterations: {args.max_iterations:6}")
+
+    if rrt_star.has_found_path():
+        print(
+            f" \033[92;1m[SUCCES]\033[0m A path was found after {rrt_star.num_iter_till_first_path} iterations and {rrt_star.explored_nodes_till_first_path} explored Nodes"
+        )
+        print(
+            f" \033[92;1m[SUCCES]\033[0m The final Path length was {rrt_star.path_length: 5.02f}"
+        )
+    else:
+        print(" \033[91;1m[FAILED]\033[0m No path was found.")
+        print(" \033[91;1m[FAILED]\033[0m The final Path length was \033[1mDNF\033[0m")
+    print(
+        f"  \033[93;1m[STATS]\033[0m Explored {rrt_star.explored_nodes} Nodes during path computation."
+    )
+    print(
+        f"  \033[93;1m[STATS]\033[0m Rejected {rrt_star.collision_count} Node samples during path computation."
+    )
+
+
+def present_results(rrt_stars: list[RRTStar], args):
+    radius_text = (
+        "a shrinking radius"
+        if args.shrinking_radius
+        else f"a constant radius of {args.radius}m"
+    )
+    print("\n")
+    print(
+        "\033[2m"
+        + f" \033[0;95m[Multi run]\033[0m RRT* with {type(rrt_stars[0].sampler).__name__} and {radius_text} \033[2m".center(
+            80 + 10 + 5, "="
+        )
+        + "\033[0m"
+    )
+    print(
+        f" \033[94m[RUN INFO]\033[0m SEED: {args.seed: 5} | N_ROOMS: {args.n_rooms: 2} | N_GOALS: {args.n_goals: 2}"
+    )
+    print(
+        f" \033[94m[RUN INFO]\033[0m WIDTH: {args.width:2.01f} | LENGTH: {args.length:2.01f}"
+    )
+    print(f" \033[94m[RUN INFO]\033[0m Iterations: {args.max_iterations:6}")
+
+    if all(rrt_star.has_found_path() for rrt_star in rrt_stars):
+        print(
+            f" \033[92;1m[SUCCES]\033[0m A path was found after {sum(rrt_star.num_iter_till_first_path or 0 for rrt_star in rrt_stars)/len(rrt_stars)} iterations and {sum(rrt_star.explored_nodes_till_first_path or 0 for rrt_star in rrt_stars)/len(rrt_stars)} explored Nodes on average."
+        )
+        print(
+            f"\tITERATIONS: {list(rrt_star.num_iter_till_first_path for rrt_star in rrt_stars)}"
+        )
+        print(
+            f"\tEXPLORED NODES: {list(rrt_star.explored_nodes_till_first_path for rrt_star in rrt_stars)}"
+        )
+
+        print(
+            f" \033[92;1m[SUCCES]\033[0m The final total Path length was {sum(rrt_star.path_length or 0 for rrt_star in rrt_stars): 5.02f}"
+        )
+        print(
+            f"\tPER RUN: [{', '.join('%5.02f' % rrt_star.path_length for rrt_star in rrt_stars)}]"
+        )
+    else:
+        print(" \033[91;1m[FAILED]\033[0m No path was found.")
+        print(
+            f"\tITERATIONS: {list(rrt_star.num_iter_till_first_path for rrt_star in rrt_stars)}"
+        )
+        print(
+            f"\tEXPLORED NODES: {list(rrt_star.explored_nodes_till_first_path for rrt_star in rrt_stars)}"
+        )
+
+        print(" \033[91;1m[FAILED]\033[0m The final Path length was \033[1mDNF\033[0m")
+        print(
+            f"\tPER RUN: [{', '.join('%5.02f' % length if (length:=rrt_star.path_length) is not None else 'None' for rrt_star in rrt_stars )}]"
+        )
+    print(
+        f"  \033[93;1m[STATS]\033[0m Explored {sum(rrt_star.explored_nodes for rrt_star in rrt_stars)} Nodes during path computation.\n\tPER RUN: {list(rrt_star.explored_nodes for rrt_star in rrt_stars)}"
+    )
+    print(
+        f"  \033[93;1m[STATS]\033[0m Rejected {sum(rrt_star.collision_count for rrt_star in rrt_stars)} Node samples in total during all path computation.\n\tPER RUN: {list(rrt_star.collision_count for rrt_star in rrt_stars)}"
+    )
+
 
 def main_single_run():
     parser = argparse.ArgumentParser("rrt-star-bench-single-run")
@@ -301,8 +422,17 @@ def main_single_run():
 
     # Plan the path using RRT*
     rrt_star = plan_rrt_star(
-        robots, world, sampler, start_pose, goal_pose, args.max_iterations
+        robots,
+        world,
+        sampler,
+        start_pose,
+        goal_pose,
+        args.max_iterations,
+        args.radius,
+        args.shrinking_radius,
     )
+
+    present_result(rrt_star, args)
 
     if args.visualize_path:
         rrt_star.plot_path()
@@ -374,14 +504,23 @@ def main_multi_run():
     # Plan the path using RRT*
     rrt_stars = [
         plan_rrt_star(
-            robots, world, sampler, start_pose, goal_pose, args.max_iterations
+            robots,
+            world,
+            sampler,
+            start_pose,
+            goal_pose,
+            args.max_iterations,
+            args.radius,
+            args.shrinking_radius,
         )
         for start_pose, goal_pose in goal_sets
     ]
 
+    present_results(rrt_stars, args)
+
     if args.visualize_path:
         for idx, rrt_star in enumerate(rrt_stars):
-            rrt_star.plot_path(block=(idx==(args.n_goals-2)))
+            rrt_star.plot_path(block=(idx == (args.n_goals - 2)))
 
     if args.visualize_sim:
         visualize_rrt_paths(robots, world, rrt_stars, goal_sets)
