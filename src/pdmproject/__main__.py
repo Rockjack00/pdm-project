@@ -52,6 +52,19 @@ def add_rrt_arguments(parser: argparse.ArgumentParser):
         dest="sampler",
         help="Use the Nullspace Sampler, which excludes the Nullspace of collisions from future samples. (default: Simple Sampler)",
     )
+    group.add_argument(
+        "-r",
+        "--radius",
+        type=float,
+        default=5.0,
+        help="The connecting radius for nodes. Used as the initial radius at n=2 if shrinking-radius is enabled. This value must be positive and of a large enough size (atleast max(width,length)/4). (default: %(default)s)",
+    )
+    group.add_argument(
+        "-sr",
+        "--shrinking-radius",
+        action="store_true",
+        help="Enable to let the connection radius shrink with the number of sampled nodes. (default: %(default)s)",
+    )
     return group
 
 
@@ -178,7 +191,13 @@ def plan_rrt_star(
     start_pose: npt.NDArray[np.float64],
     goal_pose: npt.NDArray[np.float64],
     max_iterations: int,
+    radius: float,
+    shrinking_radius: bool,
 ) -> RRTStar:
+    assert (
+        radius >= max(sampler.upper_bound[0], sampler.upper_bound[1]) / 2
+    ), "The radius must be larger than or equal to 1/4 the largest world size (width or length)"
+
     # Environment initialisation
     env = UrdfEnv(
         dt=0.01,
@@ -197,7 +216,8 @@ def plan_rrt_star(
         sampler=sampler,
         step_size=0.1,
         max_iter=max_iterations,
-        radius=5,
+        radius=radius,
+        shrinking_radius=shrinking_radius,
     )
 
     rrt_star.plan()
@@ -305,7 +325,14 @@ def main_single_run():
 
     # Plan the path using RRT*
     rrt_star = plan_rrt_star(
-        robots, world, sampler, start_pose, goal_pose, args.max_iterations
+        robots,
+        world,
+        sampler,
+        start_pose,
+        goal_pose,
+        args.max_iterations,
+        args.radius,
+        args.shrinking_radius,
     )
 
     print(rrt_star.has_found_path())
@@ -384,7 +411,14 @@ def main_multi_run():
     # Plan the path using RRT*
     rrt_stars = [
         plan_rrt_star(
-            robots, world, sampler, start_pose, goal_pose, args.max_iterations
+            robots,
+            world,
+            sampler,
+            start_pose,
+            goal_pose,
+            args.max_iterations,
+            args.radius,
+            args.shrinking_radius,
         )
         for start_pose, goal_pose in goal_sets
     ]

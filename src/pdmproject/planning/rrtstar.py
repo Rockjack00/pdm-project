@@ -29,6 +29,7 @@ class RRTStar:
         max_iter=1000,
         step_size=0.1,
         radius=1.0,
+        shrinking_radius: bool = False,
     ):
         """Initialise RRTStar planner class.
 
@@ -39,10 +40,8 @@ class RRTStar:
             sampler (SamplerBase): The sampler for the states
             max_iter (int, optional): Amount of itertaions in RRTStar planner. Defaults to 1000.
             step_size (float, optional): Step size for collision checking between nodes. Defaults to 0.1.
-            radius (float, optional): Radius for connecting new node to existing node. Defaults to 1.0.
-
-            #TODO
-            sample_function (_type_, optional): Sampler for configurations from c-space. Defaults to None.
+            radius (float, optional): Radius for connecting new node to existing node. Used as the initial radius at n=2 if shrinking_radius is True. Defaults to 1.0.
+            shrinking_radius (bool, optional): Shrink the radius based on the number of samples taken. According to the following equation: r = r_init * (log(n)/n)**(1/7)$. Defaults to False.
         """
         self.robot = robot
         self.start = Node(start)
@@ -50,9 +49,13 @@ class RRTStar:
         # self.search_area = search_area #search_area shape is (min_q1, max_q1, min_q2, max_q2, ..., max_q7)
         self.max_iter = max_iter
         self.step_size = step_size
-        self.radius = radius
+        self._radius = radius
+        self.shrink_radius = shrinking_radius
         self.node_list = [self.start]
         self.sampler = sampler
+
+        if self.shrink_radius:
+            self._radius /= (np.log(2) / 2) ** (1 / 7)
 
         # Variables for keeping track of the metrics
         self._num_iter_till_first_path: Optional[int] = None
@@ -413,6 +416,22 @@ class RRTStar:
             bool: True if a path has been found. False otherwise.
         """
         return self.goal.parent is not None
+
+    @property
+    def radius(self) -> float:
+        """Get the current connecting radius.
+
+        If shrink_radius was set to true at initialization, than the radius will shrink with the number of explored nodes.
+        Otherwise it stays constant.
+
+        Returns:
+            float: The connecting radius
+        """
+        if self.shrink_radius:
+            n = self.explored_nodes
+            return self._radius * (np.log(n) / n) ** (1 / 7) if n > 1 else self._radius
+        else:
+            return self._radius
 
 
 @functools.cache
