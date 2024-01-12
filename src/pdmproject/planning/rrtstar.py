@@ -62,7 +62,7 @@ class RRTStar:
         self._num_iter_till_first_path: Optional[int] = None
         self._explored_nodes_till_first_path: Optional[int] = None
         self._collision_count: int = 0
-        self._planned = (
+        self._planned: int = (
             0  # The amount of time plan has been used on this RRTStar instance.
         )
 
