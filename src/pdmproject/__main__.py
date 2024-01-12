@@ -230,11 +230,12 @@ def visualize_rrt_path(
             time.sleep(0.01)
     env.close()
 
+
 def visualize_rrt_paths(
     robots: list[CollisionCheckRobot],
     world: PDMWorldCreator,
     rrt_stars: list[RRTStar],
-    poses: list[tuple[npt.NDArray[np.float64],npt.NDArray[np.float64]]],
+    poses: list[tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]],
 ):
     env = UrdfEnv(
         dt=0.01,
@@ -246,13 +247,16 @@ def visualize_rrt_paths(
     env.reconfigure_camera(5.0, 0.0, -89.99, (0, 0, 0))
     _ = env.reset(pos=poses[0][0], vel=np.zeros_like(poses[0][0]))
 
-    smooth_path = np.concatenate([rrt_star.get_smoother_path(path_step_size=0.01) for rrt_star in rrt_stars])
+    smooth_path = np.concatenate(
+        [rrt_star.get_smoother_path(path_step_size=0.01) for rrt_star in rrt_stars]
+    )
 
     while True:
         for pose in smooth_path:
             robots[0].set_pose(pose=pose)
             time.sleep(0.01)
     env.close()
+
 
 def main_single_run():
     parser = argparse.ArgumentParser("rrt-star-bench-single-run")
@@ -303,6 +307,12 @@ def main_single_run():
     rrt_star = plan_rrt_star(
         robots, world, sampler, start_pose, goal_pose, args.max_iterations
     )
+
+    print(rrt_star.has_found_path())
+    print("# iterations @ Path 1:  ", rrt_star.num_iter_till_first_path)
+    print("explored nodes @ Path 1:", rrt_star.explored_nodes_till_first_path)
+    print("# iterations @ Path X:", rrt_star.num_iter)
+    print("explored nodes @ Path X:", rrt_star.explored_nodes)
 
     if args.visualize_path:
         rrt_star.plot_path()
@@ -381,7 +391,7 @@ def main_multi_run():
 
     if args.visualize_path:
         for idx, rrt_star in enumerate(rrt_stars):
-            rrt_star.plot_path(block=(idx==(args.n_goals-2)))
+            rrt_star.plot_path(block=(idx == (args.n_goals - 2)))
 
     if args.visualize_sim:
         visualize_rrt_paths(robots, world, rrt_stars, goal_sets)

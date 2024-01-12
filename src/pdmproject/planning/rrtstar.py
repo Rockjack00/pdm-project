@@ -1,6 +1,7 @@
 """The submodule which contains the RRTStar class which implements a version of the RRT* algorithm."""
 import functools
 from operator import itemgetter
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -53,6 +54,13 @@ class RRTStar:
         self.node_list = [self.start]
         self.sampler = sampler
 
+        # Variables for keeping track of the metrics
+        self._num_iter_till_first_path: Optional[int] = None
+        self._explored_nodes_till_first_path: Optional[int] = None
+        self._planned = (
+            0  # The amount of time plan has been used on this RRTStar instance.
+        )
+
     def collision_checker(
         self, pose: npt.NDArray[np.float64], perform_callback: bool = True
     ) -> bool:
@@ -84,10 +92,6 @@ class RRTStar:
             float: angle difference in rad
         """
         return metric.angle_metric(from_angle, to_angle)
-        # return (to_angle - from_angle + np.pi) % (2 * np.pi) - np.pi
-        # Source book planning-algs page 205 equ 5.7
-        # diff = np.abs(from_angle-to_angle)
-        # return np.minimum(diff, 2*np.pi-diff)
 
     @staticmethod
     def calculate_distance(to_node: Node, from_node: Node) -> float:
@@ -100,13 +104,6 @@ class RRTStar:
         Returns:
             double: distance
         """
-        # diff = to_node.get_7d_point() - from_node.get_7d_point()
-        # diff[2::4] = (-diff[2::4]+np.pi)%(2*np.pi) - np.pi # This is wrong
-        # squared_distance = diff**2
-        # # abs_ang = np.absolute(diff[2::4])
-        # # diff[2::4]= np.minimum(abs_ang, 2*np.pi - abs_ang)
-
-        # return np.sqrt(np.sum(squared_distance))
         return metric.distance_metric(
             to_arr=to_node.get_7d_point(), from_arr=from_node.get_7d_point()
         )  # type: ignore
@@ -204,10 +201,12 @@ class RRTStar:
          - Assign parent node
          - Rewire trees
         """
+        self._planned += 1
+
         # FIXME: TEMPORARY HACK FOR GOALPOINT
         self.sampler.register_goal_hack(self.goal, probability=0.05)
 
-        for _ in tqdm(range(self.max_iter)):
+        for i in tqdm(range(self.max_iter)):
             new_node = self.sampler.get_node_sample()
 
             if self.collision_checker(new_node.get_7d_point(), perform_callback=True):
@@ -215,13 +214,6 @@ class RRTStar:
                 continue
 
             near_nodes: list[tuple[float, Node]] = sorted(
-                # filter_map(
-                #     lambda node: (d, node)
-                #     if ((d := RRTStar.calculate_distance(node, new_node)) < self.radius)
-                #     else None,
-                #     self.node_list,
-                # ),
-                # key=itemgetter(0),
                 (
                     (d, node)
                     for node in self.node_list
@@ -250,6 +242,11 @@ class RRTStar:
             new_node.cost = min_cost_node.cost + min_cost_dist
 
             if new_node == self.goal:
+                if self._num_iter_till_first_path is None:
+                    self._num_iter_till_first_path = (
+                        i + 1 + self.max_iter * (self._planned - 1)
+                    )
+                    self._explored_nodes_till_first_path = len(self.node_list)
                 self.rewire(new_node)
                 continue
 
@@ -350,6 +347,72 @@ class RRTStar:
         plt.ylabel("q2-axis")
         plt.grid(True)
         plt.show(block=block)
+
+    # def path(self) -> Optional[list]:
+    #     if self.has_found_path():
+    #         self._generate_path()
+
+    def _node_path(self) -> Optional[list[Node]]:
+        """Get the path interms of Nodes if any.
+
+        Returns:
+            Optional[list[Node]]: Get a path of nodes from start till end, if a path has been found. Otherwise None is returned.
+        """
+        if self.has_found_path():
+            path = []
+            current_node = self.goal
+
+            while current_node.parent is not None:
+                path.append(current_node)
+                current_node = current_node.parent
+
+            path.append(self.start)
+            path.reverse()
+            return path
+
+    @property
+    def num_iter_till_first_path(self) -> Optional[int]:
+        """The number of planning iterations at the time first valid path was found.
+
+        Returns:
+            Optional[int]: If a path has been found, the number of iterations at the time first valid path was found. Otherwise, return None.
+        """
+        return self._num_iter_till_first_path
+
+    @property
+    def num_iter(self) -> int:
+        """The total amount of planning iterations done until now.
+
+        Returns:
+            int: The amount of planning iterations.
+        """
+        return self.max_iter * self._planned
+
+    @property
+    def explored_nodes_till_first_path(self) -> Optional[int]:
+        """The number of explored Nodes at the time first valid path was found.
+
+        Returns:
+            Optional[int]: If a path has been found, the number of explored nodes at the time first valid path was found. Otherwise, return None.
+        """
+        return self._explored_nodes_till_first_path
+
+    @property
+    def explored_nodes(self) -> int:
+        """The number of explored Nodes until now.
+
+        Returns:
+            int: The number of explored nodes.
+        """
+        return len(self.node_list)
+
+    def has_found_path(self) -> bool:
+        """Check if the RRT* has found a valid path yet.
+
+        Returns:
+            bool: True if a path has been found. False otherwise.
+        """
+        return self.goal.parent is not None
 
 
 @functools.cache
