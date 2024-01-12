@@ -27,6 +27,7 @@ class NullSpaceSampler(SamplerBase):
             np.pi / 2,
             np.pi,
         ),
+        dimension: int = 6,
         resolution: int = 7,
     ) -> None:
         """Create a uniform NullSpaceSampler
@@ -34,6 +35,16 @@ class NullSpaceSampler(SamplerBase):
         Args:
             lower_bound (npt.ArrayLike(len == 7), optional): The lower bound of this Sampler. Defaults to ( -5, -5, -np.pi, -np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi, ).
             upper_bound (npt.ArrayLike(len == 7), optional): The upper bound of this Sampler. Defaults to ( 5, 5, np.pi, np.pi / 2, np.pi / 2, np.pi / 2, np.pi, ).
+            dimension: The dimension of the sample space (one dimension for each joint).
+               | Link  | Dimension |
+               |-------|-----------|
+               |base(0)|     2     |
+               |   1   |     4     |
+               |   2   |     5     |
+               |   3   |     6     |
+               |   4*  |     6     |
+               * link 4 is always ignored in the sample space tree.
+            
             resolution: The resolution of the sample space, where each dimension is split into 2^resolution voxels. 
         """
         lower_bound = np.asarray(lower_bound, dtype=np.float64)
@@ -44,7 +55,8 @@ class NullSpaceSampler(SamplerBase):
 
         self._lower_bound = lower_bound
         self._upper_bound = upper_bound
-        self.sample_space = SparseOccupancyTree(dimension=6,
+        self.dimension = dimension
+        self.sample_space = SparseOccupancyTree(dimension=dimension,
                                                 resolution=resolution,
                                                 limits=np.array([lower_bound,
                                                                  upper_bound]),
@@ -54,21 +66,23 @@ class NullSpaceSampler(SamplerBase):
         if sample_count is None:
             sample_count = 1
 
-        cs_sample = np.zeros(sample_count,6)
+        cs_samples = np.zeros(sample_count,self.dimension)
         for i in range(sample_count):
             cs_sample[i,:] = self._get_cspace_sample()
 
-        last_sample = np.random.uniform(self._lower_bound[-1], self._upper_bound[-1], size=(sample_count,1))
+        last_samples = np.random.uniform(self._lower_bound[self.dimension - 1:], 
+                                         self._upper_bound[self.dimension - 1:], 
+                                         size=(sample_count,7 - self.dimension))
         return np.hstack(cs_samples, last_sample)
 
     def _get_cspace_sample(self):
         '''
-        Get a uniform sample from the sample space (first 6 joints), 
-        ignoring collision regions.
+        Get a uniform sample from the sample space (first D joints), ignoring
+        collision regions. D is the dimension of self.sample_space.
 
         Returns:
-            A numpy array of size (1,6) containing a uniformly distributed random
-            configuration of the first 6 joints.
+            A numpy array of size (1,D) containing a uniformly distributed
+            random configuration of the first D joints.         
         '''
 
         node = self.sample_space._root
@@ -76,12 +90,12 @@ class NullSpaceSampler(SamplerBase):
         while node is not None:
             depth = len(node_stack) + 1
             max_content = self.sample_space.max_content(depth)
-            numerators = max_content - node.values()
+            numerators = max_content - node.get_values()
             probabilities = numerators / np.sum(numerators)
 
-            child = np.random.choice(range(node.children), p=probabilities)
-            node = node.children[child_idx]
-            node_stack.append((child, node))
+            child_idx = np.random.choice(len(probabilities), p=probabilities)
+            node = node.get_child(child_idx)
+            node_stack.append((child_idx, node))
             
         node_key = self.sample_space._assemble_voxel_key(node_stack)
         bounds = self.sample_space.get_configurations(self, node_key, depth)

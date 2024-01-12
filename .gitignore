@@ -80,5 +80,8 @@ cython_debug/
 #vscode
 .vscode/
 
+#vim
+*.vim
+
 # Ruff linter
 .ruff_cache/

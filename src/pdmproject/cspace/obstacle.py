@@ -1,175 +1,288 @@
 import numpy as np
 
-
 # TODO: put this somewhere better
 R = [0.2, 0.05, 0.05, 0.05, 0.05] # Link radii
 L = [0.5, 0.025, 0.5, 0.25, 0.125, 0.1] # Robot lengths
+#    | h_base  | L2 | L3  |    L4    |
+h_base = L[0] + L[1]            # base height
 
-def calc_ns(collision, link, r=0, theta=0, phi=0, alpha_1=0, alpha_2=0):
+
+def calc_ns(collisions, link, params, limits):
     '''
-    Calculate the null space for a given link and collision point
-    Select the solution(s) returned are based on the input parameters. 
-    Input parameters must either be a constant or column vectors of the same length.
+    Calculate the null space for a given link and collision point.
+    Select the solution(s) from the 5D boundary manifold given by the input 
+    parameters.
 
-    ---
     Arguments:
-        collision - A workspace vector where the link is in collision.
+        collisions - A numpy array of one or two workspace points (rows) where 
+            the link is in collision. Ignores the second collision if solving 
+            for link 0.
         link - An index from 0-3 to select which link to use where the base is
             link 0. Link 4 is the robot hand but it is ignored for the
             purpose of calculating the null space because we model it as a 
             cylinder.
+        params - A numpy array of shape (N,5) of normalized parameters used to 
+            select the point(s) on the solution manifold.
+        limits - A numpy array of shape (2,4) which indicates the ranges
+            (minimum and maximum values) for joints q3 through q6.
 
-    Parameters, each a constant or a column vector of length N:
-        r - Radius from joint 3 to collision. Ignored if link > 0.
-        theta - Angle r_1 makes with XZ plane.
-        phi - Azimuth angle from object to joint 4. Ignored if link < 1.
-        alpha_1 - Interior angle between link 1 and r_2. Ignored if link < 2.
-        alpha_2 - Interior angle between link 2 and r_3. Ignored if link < 3.
-    ---
     Returns:
         A numpy array of size (N,6) where configuration n corresponds to
         solution n from the input parameters.
-    ---
     '''
+    N = np.shape(params)[0] # number of data points
 
-    N = np.shape(theta)[0] # number of data points
+    # ensure input shapes are valid
+    assert np.shape(params)[1] == 5
+    assert np.shape(limits) == (2,4)
+    assert np.shape(collisions)[-1] == 3
+    if link > 0:
+        assert np.shape(collisions) == (2,3)
 
-    # ensure input shapes are the same
-    assert np.shape(r) == () or np.shape(r)[0] == N
-    assert np.shape(phi) == () or np.shape(phi)[0] == N
-    assert np.shape(alpha_1) == () or np.shape(alpha_1)[0] == N
-    assert np.shape(alpha_2) == () or np.shape(alpha_2)[0] == N
+    q = np.zeros(N,6)
 
-    # base
-    q = np.zeros((N,6))
-    if link == 0:
-        q[:,:2] = cylindrical_ns(collision, r, theta)
-        return q
+    # get q3, q5, and q6 from parameters
+    q_idx = (3,5,6)
+    t_q = params[:,q_idx-2]
+    t_q4 = params[:,2]
+    q[:,q_idx-1] = t_q * limits[1,q_idx-3] + (1 - t_q) * limits[0,q_idx-3])
 
-    h = collision.z - (L[0] + L[1])
-    r_1 = h * np.tan(phi)
-    q[:,:2] = cylindrical_ns(collision, r_1, theta)
+    # calculate q
+    if link > 0:
+        # interpolate to get the collision
+        t = params[:,0]
+        collision = t * collisions[1,:] + (1 - t) * collisions[0,:]
+        h = collision[2] - h_base
 
-    # link 1
-    q[:,2] = theta # range from 0 to 2pi
-    q[:,3] = np.pi/2 - phi # range from 0 to pi
-    if link == 1:
-        return q
+        # calculate valid values for q_4
+        r2_max = np.sum(L[2:2+link])
+        limits_q4 = np.pi/2 + np.arccos(h/r2_max) * np.array([-1, 1])
+        q[:,3] = t_q4 * limits_q4[1] + (1 - t_q) * limits_q4[0]
 
-    # link 2
-    r_2 = np.sqrt(r_1**2 + h**2)
-    q[:,2] += np.pi - alpha_1 - np.arcsin(L[2] * np.sin(alpha_1) / r_2)
-    q[:,4] = alpha_1 - np.pi # range from -pi to pi
-    if link == 2:
-        return q
+        # calculate theta depending on the link
+        phi = np.pi/2 - q[:,3]
+        r_1 = h * np.tan(phi)
+        theta = q[:,2]
+        if link > 1:
+            r_2 = np.sqrt(r_1**2 + h**2)
+            alpha_1 = q[:,4] + np.pi
+            if link > 2:
+                r_3 = np.sqrt(L[2]**2 + r_2**2)
+                alpha_2 = q[:,5] + np.pi
+                beta_2 = np.pi - alpha_2 - np.arcsin(L[3] * np.sin(alpha_2) / r_3)
+                alpha_1 += beta_2
 
-    # link 3 (and 4)
-    r_3 = np.sqrt(L[2]**2 + r_2**2)
-    q[:,4] -= np.pi - alpha_2 - np.arcsin(L[3] * np.sin(alpha_2) / r_3)
-    q[:,5] = alpha_2 - np.pi # range from -pi to pi
-    return q
-
-
-def base_ns(collision, r, theta):
-    return cylindrical_ns(collision, r, theta)
-
-
-def link_one_ns(collision, theta, phi):
-    N = np.shape(theta)[0] # number of points
-
-    # ensure input shapes are the same
-    assert np.shape(phi)[0] == N
-
-    # dimensions
-    h = collision.z - (L[0] + L[1])
-    r = h * np.tan(phi)
-
-    # joint angles
-    q = np.zeros((N,4))
-    q[:,:2] = base_ns(collision, r, theta)
-    q[:,2] = theta # range from 0 to 2pi
-    q[:,3] = np.pi/2 - phi # range from 0 to pi
-    
-    return q
-
-
-def link_two_ns(collision, theta, phi, alpha):
-    N = np.shape(theta)[0] # number of points
-
-    # ensure input shapes are the same
-    assert np.shape(phi)[0] == N
-    assert np.shape(alpha)[0] == N
-
-    # dimensions
-    h = collision.z - (L[1] + L[1])
-    r_1 = h * np.tan(phi)
-    r_2 = np.sqrt(r_1**2 + h**2)
-    beta = np.pi - alpha - np.arcsin(L[2] * np.sin(alpha) / r_2)
-
-    # joint angles
-    q = np.zeros((N,5))
-    q[:,:4] = link_one_ns(collision, theta, phi)
-    q[:,2] += beta
-    q[:,4] = alpha - np.pi # range from -pi to pi
-    
-    return q
-
-
-def link_three_ns(collision, theta, phi, alpha_1, alpha_2):
-    N = np.shape(theta)[0] # number of points
-
-    # ensure input shapes are the same
-    assert np.shape(phi)[0] == N
-    assert np.shape(alpha_1)[0] == N
-    assert np.shape(alpha_2)[0] == N
-
-    # dimensions
-    h = collision.z - (L[0] + L[1])
-    r_1 = h * np.tan(phi)
-    r_2 = np.sqrt(r_1**2 + h**2)
-    r_3 = np.sqrt(L[2]**2 + r_2**2)
-    beta_2 = np.pi - alpha_1 - np.arcsin(L[3] * np.sin(alpha_1) / r_3)
-
-    # joint angles
-    q = np.zeros((N,6))
-    q[:,:5] = link_two_ns(collision, theta, phi, alpha_1)
-    q[:,4] -= beta_2
-    q[:,5] = alpha_2 - np.pi # range from -pi to pi
-    return q
-
-
-# TODO: convert link equations to use these general functions
-def cylindrical_ns(collision, r, theta):
-    N = np.shape(r)[0] # number of points
-
-    # ensure input shapes are the same
-    assert np.shape(theta)[0] == N
-
-    q = np.zeros((N,2))
-    q[:,0] = collision.x - r * cos(theta)
-    q[:,1] = collision.y - r * sin(theta)
-    
-    return q
-
-
-def planar_joint_ns(collision, params, length, r_up, downstream=None):
-    N = np.shape(params)[0] # number of points
-    alpha = params[:,1]
-
-    if downstream is None:
-        beta_down = 0
-        q = np.atleast_2d(alpha - np.pi) # range from -pi to pi
+            beta_1 = np.pi - alpha_1 - np.arcsin(L[2] * np.sin(alpha_1) / r_2)
+            theta -= beta_1
     else:
-        r_down = np.sqrt(length**2 + r_up**2)   # radius from base of this link to collision (used downstream)
-        q_rest, beta_down = downstream(collision, params[:,1:], r_down)
-        q_first = np.atleast_2d(alpha - np.pi - beta_down) # range from -pi to pi
-        q = np.vstack(q_rest, q_first)
+        # base
+        r_1 = R[0]
+        theta = params[:,0]
+        collision = collisions[0,:]
 
-    beta_up = np.pi - alpha - np.arcsin(length * np.sin(alpha) / r_up)
-    return q, beta_up
+        # use all valid values for q_4
+        q[:,3] = t_q4 * limits[1,1] + (1 - t_q) * limits[0,1])
+
+    q[:,0] = collision[0] - r_1 * cos(theta)
+    q[:,1] = collision[1] - r_1 * sin(theta)
+    return q
+
+
+# def calc_ns2(collision, link, r=0, theta=0, phi=0, alpha_1=0, alpha_2=0):
+#     '''
+#     Calculate the null space for a given link and collision point
+#     Select the solution(s) returned are based on the input parameters. 
+#     Input parameters must either be a constant or column vectors of the same length.
+# 
+#     ---
+#     Arguments:
+#         collision - A workspace vector where the link is in collision.
+#         link - An index from 0-3 to select which link to use where the base is
+#             link 0. Link 4 is the robot hand but it is ignored for the
+#             purpose of calculating the null space because we model it as a 
+#             cylinder.
+# 
+#     Parameters, each a constant or a column vector of length N:
+#         r - Radius from joint 3 to collision. Ignored if link > 0.
+#         theta - Angle r_1 makes with XZ plane.
+#         phi - Azimuth angle from object to joint 4. Ignored if link < 1.
+#         alpha_1 - Interior angle between link 1 and r_2. Ignored if link < 2.
+#         alpha_2 - Interior angle between link 2 and r_3. Ignored if link < 3.
+#     ---
+#     Returns:
+#         A numpy array of size (N,6) where configuration n corresponds to
+#         solution n from the input parameters.
+#     ---
+#     '''
+# 
+#     N = np.shape(theta)[0] # number of data points
+# 
+#     # ensure input shapes are the same
+#     assert np.shape(r) == () or np.shape(r)[0] == N
+#     assert np.shape(phi) == () or np.shape(phi)[0] == N
+#     assert np.shape(alpha_1) == () or np.shape(alpha_1)[0] == N
+#     assert np.shape(alpha_2) == () or np.shape(alpha_2)[0] == N
+# 
+#     # base
+#     q = np.zeros((N,6))
+#     if link == 0:
+#         q[:,:2] = cylindrical_ns(collision, r, theta)
+#         return q
+# 
+#     h = collision.z - (L[0] + L[1])
+#     r_1 = h * np.tan(phi)
+#     q[:,:2] = cylindrical_ns(collision, r_1, theta)
+# 
+#     # link 1
+#     q[:,2] = theta # range from 0 to 2pi
+#     q[:,3] = np.pi/2 - phi # range from 0 to pi
+#     if link == 1:
+#         return q
+# 
+#     # link 2
+#     r_2 = np.sqrt(r_1**2 + h**2)
+#     q[:,2] += np.pi - alpha_1 - np.arcsin(L[2] * np.sin(alpha_1) / r_2)
+#     q[:,4] = alpha_1 - np.pi # range from -pi to pi
+#     if link == 2:
+#         return q
+# 
+#     # link 3 (and 4)
+#     r_3 = np.sqrt(L[2]**2 + r_2**2)
+#     q[:,4] -= np.pi - alpha_2 - np.arcsin(L[3] * np.sin(alpha_2) / r_3)
+#     q[:,5] = alpha_2 - np.pi # range from -pi to pi
+#     return q
+# 
+# 
+# def base_ns(collision, r, theta):
+#     return cylindrical_ns(collision, r, theta)
+# 
+# 
+# def link_one_ns(collision, theta, phi):
+#     N = np.shape(theta)[0] # number of points
+# 
+#     # ensure input shapes are the same
+#     assert np.shape(phi)[0] == N
+# 
+#     # dimensions
+#     h = collision.z - (L[0] + L[1])
+#     r = h * np.tan(phi)
+# 
+#     # joint angles
+#     q = np.zeros((N,4))
+#     q[:,:2] = base_ns(collision, r, theta)
+#     q[:,2] = theta # range from 0 to 2pi
+#     q[:,3] = np.pi/2 - phi # range from 0 to pi
+#     
+#     return q
+# 
+# 
+# def link_two_ns(collision, theta, phi, alpha):
+#     N = np.shape(theta)[0] # number of points
+# 
+#     # ensure input shapes are the same
+#     assert np.shape(phi)[0] == N
+#     assert np.shape(alpha)[0] == N
+# 
+#     # dimensions
+#     h = collision.z - (L[1] + L[1])
+#     r_1 = h * np.tan(phi)
+#     r_2 = np.sqrt(r_1**2 + h**2)
+#     beta = np.pi - alpha - np.arcsin(L[2] * np.sin(alpha) / r_2)
+# 
+#     # joint angles
+#     q = np.zeros((N,5))
+#     q[:,:4] = link_one_ns(collision, theta, phi)
+#     q[:,2] += beta
+#     q[:,4] = alpha - np.pi # range from -pi to pi
+#     
+#     return q
+# 
+# 
+# def link_three_ns(collision, theta, phi, alpha_1, alpha_2):
+#     N = np.shape(theta)[0] # number of points
+# 
+#     # ensure input shapes are the same
+#     assert np.shape(phi)[0] == N
+#     assert np.shape(alpha_1)[0] == N
+#     assert np.shape(alpha_2)[0] == N
+# 
+#     # dimensions
+#     h = collision.z - (L[0] + L[1])
+#     r_1 = h * np.tan(phi)
+#     r_2 = np.sqrt(r_1**2 + h**2)
+#     r_3 = np.sqrt(L[2]**2 + r_2**2)
+#     beta_2 = np.pi - alpha_1 - np.arcsin(L[3] * np.sin(alpha_1) / r_3)
+# 
+#     # joint angles
+#     q = np.zeros((N,6))
+#     q[:,:5] = link_two_ns(collision, theta, phi, alpha_1)
+#     q[:,4] -= beta_2
+#     q[:,5] = alpha_2 - np.pi # range from -pi to pi
+#     return q
+# 
+# 
+# # TODO: convert link equations to use these general functions
+# def cylindrical_ns(collision, r, theta):
+#     N = np.shape(r)[0] # number of points
+# 
+#     # ensure input shapes are the same
+#     assert np.shape(theta)[0] == N
+# 
+#     q = np.zeros((N,2))
+#     q[:,0] = collision.x - r * cos(theta)
+#     q[:,1] = collision.y - r * sin(theta)
+#     
+#     return q
+# 
+# 
+# def planar_joint_ns(collision, params, length, r_up, downstream=None):
+#     N = np.shape(params)[0] # number of points
+#     alpha = params[:,1]
+# 
+#     if downstream is None:
+#         beta_down = 0
+#         q = np.atleast_2d(alpha - np.pi) # range from -pi to pi
+#     else:
+#         r_down = np.sqrt(length**2 + r_up**2)   # radius from base of this link to collision (used downstream)
+#         q_rest, beta_down = downstream(collision, params[:,1:], r_down)
+#         q_first = np.atleast_2d(alpha - np.pi - beta_down) # range from -pi to pi
+#         q = np.vstack(q_rest, q_first)
+# 
+#     beta_up = np.pi - alpha - np.arcsin(length * np.sin(alpha) / r_up)
+#     return q, beta_up
 
 
 def update_sample_space(collisions, sample_space, link):
+    # TODO: parallelize this with multiple workers
+    # may require load balancing
+
+    midpoints = []
+    node_stack = []
+
+    # TODO: define a param generator, based on minimum dq stuff
+    # param generator should generate sets of parameters [0,1] x 5 where each
+    # of the 4-d "hyper-faces" is solved by fixing one of the parameters at 0 and 1
+    # and getting a cartesean product of the rest.
+    #
+    # NOTE: naively, if this is just done once for every 5-D face, each params
+    # array is roughly 2Gb so should fit in memory. 
+    # >>> sys.getsizeof(np.zeros((128,128,128,128))) / 1024**3
+    # >>> 2.000
+    #
+    for params in ParamGenerator():
+        points = calc_ns(collisions, params, limits, link)
+        midpoints.append(points[len(points) // 2, :])
+        voxels = sample_space.locate(points)
+
+        for voxel in voxels:
+            node_stack = sample_space.set(voxel, node_stack=node_stack)
+
+    # TODO: get a smarter interior point or multiple interior points
+    # multiple interior points would require load balancing between workers
+    interior_point = np.average(midpoints, axis=0)
+    sample_space.flood_fill(interior_point)
+
+def update_sample_space2(collisions, sample_space, link):
     N_POINTS = 20
     ERROR = 1e-10
     h = collision.z - (L[0] + L[1])
@@ -184,7 +297,7 @@ def update_sample_space(collisions, sample_space, link):
     midpoints = []
     node_stack = []
     for collision in collisions:
-        points = calc_ns(collision, link, r, theta, phi, alpha_1, alpha_2)
+        points = calc_ns2(collision, link, r, theta, phi, alpha_1, alpha_2)
         midpoints.append(points[len(points) // 2, :])
         # TODO: connect points to ensure a smooth manifold.
         # Right now we have no guarantees that the regions don't have holes
