@@ -143,6 +143,8 @@ class CollisionCheckRobot(GenericUrdfReacher):
             
             if contact_link == 2:
                 links.append(0)
+                
+                self.set_pose(pose)
                 current_contact_links, current_contact_links_poses = self.get_links_data()
                 current_contact_links_poses = current_contact_links_poses[current_contact_links == 2]
                 current_contact_links = current_contact_links[current_contact_links == 2]
