@@ -3,7 +3,9 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+import pdmproject.cspace.obstacle as obs
 from pdmproject.cspace.tree import SparseOccupancyTree
+from pdmproject.cspace.obstacle import CartesianIterator, HypercubeIterator
 
 from . import SamplerBase
 
@@ -29,7 +31,7 @@ class NullSpaceSampler(SamplerBase):
             np.pi / 2,
             np.pi,
         ),
-        dimension: int = 6,
+        dimension: int = 3,
         resolution: int = 7,
     ) -> None:
         """Create a uniform NullSpaceSampler.
@@ -62,8 +64,17 @@ class NullSpaceSampler(SamplerBase):
             dimension=dimension,
             resolution=resolution,
             limits=np.array([lower_bound[:dimension], upper_bound[:dimension]]),
-            wraps=[False, False, True, False, False, False],
+            wraps=[False, False, True, False, False, False][:dimension],
         )
+        self.debug_iter = 0
+
+    @SamplerBase.lower_bound.getter
+    def lower_bound(self):
+        return self._lower_bound
+
+    @SamplerBase.upper_bound.getter
+    def upper_bound(self):
+        return self._upper_bound
 
     def get_sample(self, sample_count=None):
         if sample_count is None:
@@ -110,12 +121,77 @@ class NullSpaceSampler(SamplerBase):
         return np.random.uniform(bounds[0, :], bounds[1, :])
 
     def callback(self, poses: npt.NDArray, collision_checker: Any) -> None:
-        return super().callback(poses, collision_checker)
+        for link, collisions in zip(*collision_checker.collision_finder()):
+            # Skip unimplemented updates
+            if link > 0:
+                continue
+            self._update_sample_space(link, collisions)
 
-    @SamplerBase.lower_bound.getter
-    def lower_bound(self):
-        return self._lower_bound
+    def _update_sample_space(self, link, collisions):
+        """A callback function to create a new cspace obstacle and insert it into the sample space.
 
-    @SamplerBase.upper_bound.getter
-    def upper_bound(self):
-        return self._upper_bound
+        WARNING: Currently only implemented for link 0.
+
+        Args:
+            link: An index from 0-3 to select which link to use where the base is
+                link 0. Link 4 is the robot hand but it is ignored for the
+                purpose of calculating the null space because we model it as a
+                cylinder.
+            collisions: A numpy array of one or two workspace points (rows) where
+                the link is in collision. Ignores the second collision if solving
+                for link 0.
+        """
+        # TODO: parallelize this with multiple workers
+        # may require load balancing
+
+        midpoints = []
+        node_stack = []
+
+        # param generator generates sets of parameters [0,1] x 5 where each
+        # of the 4-d "hyper-faces" is solved by fixing one of the parameters at 0 and 1
+        # and getting a cartesean product of the rest.
+        if link == 0:
+            marcher = CartesianIterator(
+                [obs.dtheta_step(self.sample_space),
+                 obs.voxel_step(3, self.sample_space)]  # remove these if not in the tree
+                 #obs.voxel_step(4, self.sample_space),  # remove these if not in the tree
+                 #obs.voxel_step(5, self.sample_space),  # remove these if not in the tree
+                 #obs.voxel_step(6, self.sample_space)]  # remove these if not in the tree
+            )  
+        # TODO
+        elif link >= 1:
+            # cry
+            marcher = []
+            #marcher = HypercubeIterator()
+            raise NotImplementedError
+
+        # using the generator, march over the null space boundary
+        old_content = self.sample_space._root.sum_values()
+        for params in marcher:
+            points = obs.calc_ns(collisions, link, params, self.sample_space.limits[:,2:])
+            midpoints.append(points[len(points) // 2, :])
+
+            voxels = self.sample_space.locate(points)
+            for voxel in voxels:
+                node_stack = self.sample_space.set(voxel, node_stack=node_stack)
+
+            new_content = self.sample_space._root.sum_values()
+            t = params[0,0]
+            #print(f't={t:>4.3f} - Set {new_content - old_content:>3} of {len(points)} voxels. Sample space content: {new_content / self.sample_space.max_content(0):>8.4%}')
+            old_content = new_content
+
+        # TODO: get a smarter interior point or multiple interior points
+        # multiple interior points would require load balancing between workers
+        if link == 0:
+            interior_point = np.zeros(self.dimension)
+            interior_point[:2] = collisions[0, :2]
+            print(f'[{self.debug_iter}] Obstacle at: {interior_point}')
+        else:
+            interior_point = np.average(midpoints, axis=0)
+
+        # fill the inside of the obstacle
+        self.sample_space.flood_fill(interior_point)
+        print(f'Sample space content: {self.sample_space._root.sum_values() / self.sample_space.max_content(0):.4%}')
+        self.debug_iter += 1
+        #if self.debug_iter > 62:
+        #    self.sample_space.plot()

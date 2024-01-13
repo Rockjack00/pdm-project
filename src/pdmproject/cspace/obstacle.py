@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numpy as np
 
 # TODO: put this somewhere better
@@ -8,6 +6,8 @@ L = np.array([0.5, 0.025, 0.5, 0.25, 0.125, 0.1])  # Robot lengths
 #             | h_base  | L2 | L3  |    L4    |
 h_base = L[0] + L[1]  # base height
 
+CSPACE_DIM = 3
+MIN_VOXEL_STEP = 0.5
 
 def calc_ns(collisions, link, params, limits):
     """Calculate the null space for a given link and collision point.
@@ -35,18 +35,22 @@ def calc_ns(collisions, link, params, limits):
     N = np.shape(params)[0]  # number of data points
 
     # ensure input shapes are valid
-    assert np.shape(params)[1] == 5
-    assert np.shape(limits) == (2, 4)
+    assert np.shape(params)[1] == CSPACE_DIM - 1
+    assert np.shape(limits) == (2, CSPACE_DIM - 2)
     assert np.shape(collisions)[-1] == 3
     if link > 0:
         assert np.shape(collisions) == (2, 3)
 
-    q = np.zeros((N, 6))
+    q = np.zeros((N, CSPACE_DIM))
 
     # get q3, q5, and q6 from parameters
-    q_idx = np.array((3, 5, 6))
+
+    # TODO: restore this for higher dimensions
+    # q_idx = np.array((3, 5, 6))
+    q_idx = 3
     t_q = params[:, q_idx - 2]
-    t_q4 = params[:, 2]
+    # TODO: restore this for higher dimensions
+    # t_q4 = params[:, 2]
     q[:, q_idx - 1] = t_q * limits[1, q_idx - 3] + (1 - t_q) * limits[0, q_idx - 3]
 
     # calculate q
@@ -83,73 +87,12 @@ def calc_ns(collisions, link, params, limits):
         collision = collisions[0, :]
 
         # use all valid values for q_4
-        q[:, 3] = t_q4 * limits[1, 1] + (1 - t_q) * limits[0, 1]
+        # TODO: restore this for higher dimensions
+        #q[:, 3] = t_q4 * limits[1, 1] + (1 - t_q4) * limits[0, 1]
 
     q[:, 0] = collision[0] - r_1 * np.cos(theta)
     q[:, 1] = collision[1] - r_1 * np.sin(theta)
     return q
-
-
-# TODO: move this to the ns sampler maybe?
-def update_sample_space(collisions, sample_space, link):
-    """A callback function to create a new cspace obstacle and insert it into the sample space.
-
-    WARNING: Currently only implemented for link 0.
-
-    Args:
-        collisions: A numpy array of one or two workspace points (rows) where
-            the link is in collision. Ignores the second collision if solving
-            for link 0.
-        sample_space: A SparseOccupanyTree to insert the new collision into.
-        link: An index from 0-3 to select which link to use where the base is
-            link 0. Link 4 is the robot hand but it is ignored for the
-            purpose of calculating the null space because we model it as a
-            cylinder.
-    """
-    # TODO: parallelize this with multiple workers
-    # may require load balancing
-
-    midpoints = []
-    node_stack = []
-
-    # param generator generates sets of parameters [0,1] x 5 where each
-    # of the 4-d "hyper-faces" is solved by fixing one of the parameters at 0 and 1
-    # and getting a cartesean product of the rest.
-    marcher: Optional[HypercubeIterator] = None
-    if link == 0:
-        marcher = HypercubeIterator(
-            dtheta_fixed,
-            make_voxel_stepper(3),  # remove these if not in the tree
-            make_voxel_stepper(4),  # remove these if not in the tree
-            make_voxel_stepper(5),  # remove these if not in the tree
-            make_voxel_stepper(6),
-        )  # remove these if not in the tree
-    # TODO
-    elif link >= 1:
-        # cry
-        raise NotImplementedError()
-
-    assert marcher is not None  # Mostly for type checking
-    # using the generator, march over the null space boundary
-    for params in marcher:
-        # FIXME: Which limits, limits of local voxel space or of the full sample space.
-        points = calc_ns(collisions, link, params, limits)
-        midpoints.append(points[len(points) // 2, :])
-        voxels = sample_space.locate(points)
-
-        for voxel in voxels:
-            node_stack = sample_space.set(voxel, node_stack=node_stack)
-
-    # TODO: get a smarter interior point or multiple interior points
-    # multiple interior points would require load balancing between workers
-    if link == 0:
-        interior_point = np.zeros(6)
-        interior_point[:2] = collisions[0, :2]
-    else:
-        interior_point = np.average(midpoints, axis=0)
-
-    # fill the inside of the obstacle
-    sample_space.flood_fill(interior_point)
 
 
 class HypercubeIterator:
@@ -252,10 +195,11 @@ class HypercubeIterator:
         """
         raise NotImplementedError()
 
-        last_param = limits[0, param]
+        last_param = self.limits[0, param]
         permutations = (np.arange((self.dimension - 1) ** 2) % self.dimension) + 1
 
         step_dim = 0
+        i = 0
         # self.current_dim
         while step_dim < self.dimension:
             outer_param = permutations[i]
@@ -266,10 +210,10 @@ class HypercubeIterator:
             done = False
             while not done:
                 last_param += self.step_functions[step_dim](self.last_point)
-                if last_param <= limits[1, param]:
+                if last_param <= self.limits[1, param]:
                     self.last_point[i] = last_param
                 else:
-                    self.last_point[i] = limits[1, param]
+                    self.last_point[i] = self.limits[1, param]
                     done = True
                 yield self.last_point
 
@@ -305,7 +249,7 @@ class HypercubeIterator:
 
     @staticmethod
     def _cartesian_product(*arrays):
-        """Get the cartesian product of several arrays.
+        """Get the cartesian product of several numpy arrays.
 
         Adopted from https://stackoverflow.com/a/11146645
         """
@@ -315,6 +259,113 @@ class HypercubeIterator:
         for i, a in enumerate(np.ix_(*arrays)):
             arr[..., i] = a
         return arr.reshape(-1, la)
+
+
+class CartesianIterator:
+    """An Iterator which cycles over the Cartesian product of a set of parameters.
+
+    This operates similarly to itertools.product() however it is specialized
+    for large numpy arrays. This generates blocks of parameters to traverse
+    a space lexicographically with a maximum step size at each point.
+    """
+
+    def __init__(self, deltas, limits=None):
+        """Create a CartesianIterator.
+
+        Args:
+            deltas: A list of step sizes for each dimension to march over.
+            limits: A numpy array of shape (2,d) which indicates minimum and
+                maximum values for each dimension. Defaults to [0,1] for every
+                dimension.
+        """
+        self.deltas = deltas
+        self.dimension = len(deltas)
+        
+        if limits is None:
+            limits = np.indices((2, self.dimension))[0]
+        else:
+            assert np.shape(limits) == (2,self.dimension)
+        self.limits = limits
+
+        self.spaces = self._create_spaces()
+        self._reset()
+
+    def __iter__(self):
+        """Reset this and return it."""
+        self._reset()
+        return self
+
+    def __next__(self):
+        """Get the next set of parameters to evaluate.
+
+        Returns:
+            A numpy array of shape (N,D) of normalized parameters used to
+            select the parameters from a D-dimensional hypercube. When called
+            successively, this will march through the entire hypercube, in 
+            lexicographical order. N is dependent on the step size for each 
+            dimension, but will return all parameters for an entire step in the
+            first dimension at once.
+        """
+        if self.next_index >= len(self.spaces[0]):
+            raise StopIteration
+
+        self.next_index += 1
+        p0 = np.array([self.spaces[0][self.next_index - 1]])
+        return self._cartesian_product(p0, *self.spaces[1:])
+
+    def _reset(self):
+        """Reset the iterator from the first point."""
+        self.next_index = 0
+
+    def _create_spaces(self):
+        """Create linear spaces for each dimension with a fixed maximum step size."""
+        spaces = []
+        lengths = np.ceil(1 / np.array(self.deltas)).astype(int)
+        for i in range(self.dimension):
+            param_space = np.linspace(self.limits[0, i], 
+                                      self.limits[1, i], 
+                                      num=lengths[i])
+            spaces.append(param_space)
+        return spaces
+
+    @staticmethod
+    def _cartesian_product(*arrays):
+        """Get the cartesian product of several numpy arrays.
+
+        Adopted from https://stackoverflow.com/a/11146645
+
+        Returns:
+            A numpy array of shape (N,D), in which each row is an element of
+            the cartesian product of the inputs. N is the product the lengths of
+            each input array, and D is the number of input arrays.
+        """
+        la = len(arrays)
+        dtype = np.result_type(*arrays)
+        arr = np.empty([len(a) for a in arrays] + [la], dtype=float)
+        for i, a in enumerate(np.ix_(*arrays)):
+            arr[..., i] = a
+        return arr.reshape(-1, la)
+
+
+def dtheta_step(sample_space):
+    """Calculate a fixed step size for theta (used only for link 0).
+
+    Arguments:
+        sample_space: A SparseOccupanyTree containing the voxels to iterate over.
+    """
+    voxel_size = min((sample_space.limits[1, :2] - sample_space.limits[0, :2]) / 
+                     (2**sample_space.res)) * MIN_VOXEL_STEP
+    return np.arcsin(voxel_size / R[0]) / (2 * np.pi)
+
+
+def voxel_step(q, sample_space):
+    """Calculate a fixed step size for one voxel in joint q.
+
+    Arguments:
+        q: The joint number.
+        sample_space: A SparseOccupanyTree containing the voxels to iterate over.
+    """
+    return 1 / (2**sample_space.res) * MIN_VOXEL_STEP
 
 
 def dtheta_fixed(limits, resolution):

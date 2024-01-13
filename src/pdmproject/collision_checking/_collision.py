@@ -129,9 +129,9 @@ class CollisionCheckRobot(GenericUrdfReacher):
         Run this method if method check_if_colliding returns true
 
         Returns:
-            tuple[np.ndarray, np.ndarray]:  First array contais link ids with values 0, 1, 2 or 3
-                                            Second array contains collision points pairs. If link 0: collision_pose, zeros(7)
-                                            If lists are empty -> Self Collision
+            tuple[list, list]:  First array contais link ids with values 0, 1, 2 or 3
+                                Second array contains collision points pairs. If link 0: collision_pose, zeros(3)
+                                If lists are empty -> Self Collision
         """
         contact_links, contact_links_poses = self.get_links_data()
         pose = np.copy(self.pose)
@@ -323,4 +323,4 @@ class CollisionCheckRobot(GenericUrdfReacher):
                     all_colls.append([colls_l89_q6[0], colls_l89_q6[-1]])
                     continue
 
-        return np.array(links), np.array(all_colls)
+        return links, all_colls

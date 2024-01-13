@@ -1,6 +1,9 @@
 import numpy as np
 import numpy.typing as npt
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
+PLOT_CSPACE = False
 
 class SparseOccupancyTree:
     """A sparse occupancy tree analogous to a sparse voxel octree data structure.
@@ -51,9 +54,11 @@ class SparseOccupancyTree:
         self.wraps = wraps
         # TODO: add a node_stack here (and maybe depth?) to make traversal easier?
 
+        self.voxel_array = np.zeros([2**resolution] * 3) > 1
+
     def __repr__(self):
         """The string representation of a 64-tree."""
-        return f"({2 ** self.d}-Tree [res={self.res}, content={100 * self._root.sum_values() / self.max_content(0)}%])"
+        return f"({2 ** self.d}-Tree [res={self.res}, content={self._root.sum_values() / self.max_content(0):.2%}])"
 
     # TODO: maybe implement topology as a hash table, using the z-order as the hash code?
     # TODO: include a depth header for the keys so they can be used for nodes as well
@@ -382,28 +387,8 @@ class SparseOccupancyTree:
 
             i -= 1
 
-        #        content = self.max_content(depth)
-        #        i = 0
-        #        cur_node = self._root
-        #        while i < depth:
-        #            next_idx = node_stack[i][0]
-        #
-        #            # current node is a leaf so update voxel individually
-        #            if i == self.res - 1:
-        #                cur_node.increment(next_idx)
-        #                break
-        #            cur_node.values[next_idx] += content
-        #
-        #            # Prune the tree once a node is filled
-        #            child_max_content = self.max_content(i + 1)
-        #            if cur_node.values[next_idx] >= child_max_content:
-        #                cur_node.children[next_idx] = None
-        #                cur_node.values[next_idx] = child_max_content
-        #                return node_stack[:i+1]
-        #
-        #            # increment
-        #            cur_node = node_stack[i][1]
-        #            i += 1
+        if PLOT_CSPACE:
+            self.plot_node(node_key, depth)
 
         return node_stack[:filled_depth]
 
@@ -585,6 +570,22 @@ class SparseOccupancyTree:
                 continue
             queue += self.get_smallest_neighbors(node_key, directions, depth)
             node_stack = self.set(node_key, depth, node_stack)
+
+    def plot_node(self, node_key, depth):
+        node_key, depth = self.make_node(node_key, depth)
+        lower_bounds = self.vector(node_key)
+        upper_bounds = 2 ** (self.res - depth) + lower_bounds
+
+        x, y, z = np.indices([2**self.res] * 3)
+        cube = (x >= lower_bounds[0]) & (y >= lower_bounds[1]) & (z >= lower_bounds[2]) \
+            & (x <= upper_bounds[0]) & (y <= upper_bounds[1]) & (z <= upper_bounds[2]) 
+
+        self.voxel_array |= cube
+
+    def plot(self):
+        ax = plt.figure().add_subplot(projection='3d')
+        ax.voxels(self.voxel_array)
+        plt.show()
 
 
 # TODO: define __get__ and __set__ for brackets to modify children
