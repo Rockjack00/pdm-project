@@ -143,12 +143,14 @@ class CollisionCheckRobot(GenericUrdfReacher):
             
             if contact_link == 2:
                 links.append(0)
+                self.set_pose(pose)
                 current_contact_links, current_contact_links_poses = self.get_links_data()
                 current_contact_links_poses = current_contact_links_poses[current_contact_links == 2]
                 current_contact_links = current_contact_links[current_contact_links == 2]
                 
-                colls_l2_q12 = np.array([current_contact_links_poses[0], np.zeros(3)])
-                all_colls.append(colls_l2_q12)
+                if len(current_contact_links) > 0:
+                    colls_l2_q12 = np.array([current_contact_links_poses[0], np.zeros(3)])
+                    all_colls.append(np.array(colls_l2_q12))
                 continue
 
             if contact_link == 4:
@@ -168,7 +170,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
                             colls_l4_q3.append([*current_contact_links_poses[0]])
 
                 if colls_l4_q3:
-                    all_colls.append([colls_l4_q3[0], colls_l4_q3[-1]])
+                    all_colls.append(np.array([colls_l4_q3[0], colls_l4_q3[-1]]))
                     continue
 
 
@@ -186,7 +188,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
                             colls_l4_q4.append([*current_contact_links_poses[0]])
                 
                 if colls_l4_q4:
-                    all_colls.append([colls_l4_q4[0], colls_l4_q4[-1]])
+                    all_colls.append(np.array([colls_l4_q4[0], colls_l4_q4[-1]]))
                     continue
 
 
@@ -207,7 +209,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
                             colls_l6_q3.append([*current_contact_links_poses[0]])
 
                 if colls_l6_q3:
-                    all_colls.append([colls_l6_q3[0], colls_l6_q3[-1]])
+                    all_colls.append(np.array([colls_l6_q3[0], colls_l6_q3[-1]]))
                     continue
 
 
@@ -225,7 +227,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
                             colls_l6_q4.append([*current_contact_links_poses[0]])
 
                 if colls_l6_q4:
-                    all_colls.append([colls_l6_q4[0], colls_l6_q4[-1]])
+                    all_colls.append(np.array([colls_l6_q4[0], colls_l6_q4[-1]]))
                     continue
 
 
@@ -244,7 +246,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
                             colls_l6_q5.append([*current_contact_links_poses[0]])
 
                 if colls_l6_q5:
-                    all_colls.append([colls_l6_q5[0], colls_l6_q5[-1]])
+                    all_colls.append(np.array([colls_l6_q5[0], colls_l6_q5[-1]]))
                     continue
 
 
@@ -266,7 +268,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
                             colls_l89_q3.append([*current_contact_links_poses[0]])
 
                 if colls_l89_q3:
-                    all_colls.append([colls_l89_q3[0], colls_l89_q3[-1]])
+                    all_colls.append(np.array([colls_l89_q3[0], colls_l89_q3[-1]]))
                     continue
                 
 
@@ -284,7 +286,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
                             colls_l89_q4.append([*current_contact_links_poses[0]])
 
                 if colls_l89_q4:
-                    all_colls.append([colls_l89_q4[0], colls_l89_q4[-1]])
+                    all_colls.append(np.array([colls_l89_q4[0], colls_l89_q4[-1]]))
                     continue
 
 
@@ -302,7 +304,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
                             colls_l89_q5.append([*current_contact_links_poses[0]])
 
                 if colls_l89_q5:
-                    all_colls.append([colls_l89_q5[0], colls_l89_q5[-1]])
+                    all_colls.append(np.array([colls_l89_q5[0], colls_l89_q5[-1]]))
                     continue
 
                 
@@ -320,7 +322,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
                             colls_l89_q6.append([*current_contact_links_poses[0]])
 
                 if colls_l89_q6:
-                    all_colls.append([colls_l89_q6[0], colls_l89_q6[-1]])
+                    all_colls.append(np.array([colls_l89_q6[0], colls_l89_q6[-1]]))
                     continue
 
         return links, all_colls

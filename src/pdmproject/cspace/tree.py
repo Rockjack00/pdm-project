@@ -329,6 +329,41 @@ class SparseOccupancyTree:
             return is_set, node_stack
         return is_set
 
+    def paint(self, voxel, brush_size=1, directions=None, node_stack=None):
+        """Set the center voxel and brush_size of its nearest neighbors in the 
+        specified directions.
+
+        Arguments:
+            voxel - A voxel key in the center of the group to paint.
+            brush_size - The number of neighboring voxels to set.
+            directions: A collection of flags where each dimension has a
+                positive and negative direction. Defaults to all directions.
+                For 6 dimensions:       |654321 654321|
+                                        |------ ++++++|
+            node_stack: A list of key/value pairs where the value is a node in
+                the tree and the key is the index of the node from its parent.
+                The node stack cannot contain more elements than the max tree
+                depth (self.res).
+        """
+        if directions is None:
+            directions = 2 ** (self.d * 2) - 1  # all directions
+        if node_stack is None:
+            node_stack = []
+        node_stack = self._traverse(node_stack, voxel, insert=True)
+
+        voxels = {voxel}
+        i = 0
+        while i < brush_size:
+            new_voxels = {}
+            for voxel in voxels:
+                new_voxels.update(self.get_neighbors(voxel, directions))
+            voxels = new_voxels
+            i += 1
+
+        node_stack = []
+        for voxel in voxels:
+            node_stack = self.set(voxel, node_stack=node_stack)
+
     def set(self, node_key, depth=None, node_stack=None):
         """Set all of the voxels contained in node to true and update counts.
 
