@@ -1,5 +1,5 @@
 import traceback
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -77,9 +77,8 @@ class NullSpaceSampler(SamplerBase):
     def upper_bound(self):
         return self._upper_bound
 
-    def get_sample(self, sample_count=None):
-        if sample_count is None:
-            sample_count = 1
+    def get_sample(self, sample_count: Optional[int] = None):
+        sample_count = sample_count or 1
 
         cs_samples = np.zeros((sample_count, self.dimension))
         for i in range(sample_count):

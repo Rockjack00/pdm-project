@@ -490,7 +490,7 @@ class SparseOccupancyTree:
             if isinstance(cur_node, BinaryLeafNode):
                 # current node is a leaf so update voxel individually
                 cur_node.increment(next_idx)
-            elif cur_node.values[next_idx] + content < child_max_content: # type: ignore
+            elif cur_node.values[next_idx] + content < child_max_content:  # type: ignore
                 assert isinstance(cur_node, TopologyNode)
                 # add content to ancestor nodes
                 cur_node.values[next_idx] += content
@@ -646,7 +646,7 @@ class SparseOccupancyTree:
         neighbors = []
         for child_idx in children:
             if depth < self.res - 1:
-                child = node_stack[-1][1].children[child_idx] # type: ignore # This is a TopologyNode
+                child = node_stack[-1][1].children[child_idx]  # type: ignore # This is a TopologyNode
             else:
                 # this is a leaf node so its children must be voxels
                 child = None
@@ -681,24 +681,6 @@ class SparseOccupancyTree:
                 continue
             queue += self.get_smallest_neighbors(node_key, directions, depth)
             node_stack = self.set(node_key, depth, node_stack)
-
-
-@dataclass(slots=True, eq=False, frozen=True)
-class NodeID:
-    id: np.int64
-    d: int
-
-    def __getitem__(self, i) -> bool:
-        return (self.id >> self.d * i) & (2 ** (self.d) - 1)
-
-    def __int__(self) -> int:
-        return int(self.id)
-
-    def __eq__(self, other):
-        return self.id == other.id
-
-    def __hash__(self) -> int:
-        return hash(int(self.id))
 
 
 if __name__ == "__main__":
