@@ -2,7 +2,7 @@
  ![Example CI Badge](https://github.com/github/docs/actions/workflows/main.yml/badge.svg)
  [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-_#TODO_: come up with a good name
+> _#TODO_: come up with a good name
 
 Final Project
 TU Delft course RO47005 Planning and Decision Making
@@ -85,21 +85,7 @@ For development the package can be installed as editable:
 pip install -e .
 ```
 
-#### NOTES: TO ADD
-***TODO***: Integrate and specify this
-<!-- If using qt backend install (Ubuntu):
-```bash
-sudo apt install libxcd-cursor0
-``` -->
-
 If using TKinter in virtual env (Ubuntu with Deadsnakesppa):
 ```bash
 sudo apt install python3.10-tk
-``` 
-
-## Running the demo
-_#TODO_: demo instructions
-```bash
-python launch_demo.sh
 ```
-
