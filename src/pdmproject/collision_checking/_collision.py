@@ -1,5 +1,4 @@
 from typing import Collection
-import time
 
 import numpy as np
 
@@ -23,7 +22,9 @@ class CollisionCheckRobot(GenericUrdfReacher):
         super().__init__(urdf, mode)
 
         self.pose = np.zeros(7)
-        self.limits = np.array([[-np.pi, np.pi],[-np.pi / 2, np.pi / 2], [-np.pi, np.pi], [-np.pi, np.pi]])
+        self.limits = np.array(
+            [[-np.pi, np.pi], [-np.pi / 2, np.pi / 2], [-np.pi, np.pi], [-np.pi, np.pi]]
+        )
 
     def reset(
         self,
@@ -123,7 +124,7 @@ class CollisionCheckRobot(GenericUrdfReacher):
             contact_links_poses[i, 0:] = contact[6]
 
         return contact_links, contact_links_poses
-    
+
     def collision_finder(self):
         """Generate collision points based on a given collision configuration.
 
@@ -134,20 +135,14 @@ class CollisionCheckRobot(GenericUrdfReacher):
                                 Second array contains collision points pairs. If link 0: collision_pose, zeros(3)
                                 If lists are empty -> Self Collision
         """
-        NUM_CHECKS = 10 # number of points to check each joint for collisisons
+        NUM_CHECKS = 10  # number of points to check each joint for collisisons
         contact_links, contact_links_poses = self.get_links_data()
         pose = np.copy(self.pose)
 
         all_links = []
         all_colls = []
 
-
-        urdf_joint_table = {2: 0,
-                            4: 1,
-                            6: 2,
-                            8: 3,
-                            9: 3}
-
+        urdf_joint_table = {2: 0, 4: 1, 6: 2, 8: 3, 9: 3}
 
         for contact_link in set(contact_links):
             joint_no = urdf_joint_table[contact_link]
@@ -157,14 +152,18 @@ class CollisionCheckRobot(GenericUrdfReacher):
                 self.set_pose(pose)
                 links, poses = self.get_links_data()
                 if sum(links == contact_link) > 0:
-                    all_colls.append(np.array([poses[links == contact_link][0], np.zeros(3)]))
+                    all_colls.append(
+                        np.array([poses[links == contact_link][0], np.zeros(3)])
+                    )
             else:
                 i = 0
                 while i <= joint_no:
                     check_pose = np.copy(pose)
                     collisions = []
-                    for q in np.linspace(self.limits[i][0], self.limits[i][1], NUM_CHECKS):
-                        check_pose[i+2] = q
+                    for q in np.linspace(
+                        self.limits[i][0], self.limits[i][1], NUM_CHECKS
+                    ):
+                        check_pose[i + 2] = q
                         if self.check_if_colliding(check_pose):
                             links, poses = self.get_links_data()
                             if sum(links == contact_link) > 0:

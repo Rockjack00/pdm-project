@@ -459,6 +459,8 @@ def main_single_run():  # noqa: D103
 
 
 def main_multi_run():  # noqa: D103
+    pr = cProfile.Profile()
+    pr.enable()
     parser = argparse.ArgumentParser("rrt-star-bench-multi-run")
     # RRT* Options
     add_rrt_arguments(parser)
@@ -534,6 +536,9 @@ def main_multi_run():  # noqa: D103
     ]
 
     present_results(rrt_stars, args)
+
+    pr.disable()
+    pr.print_stats(1)
 
     if args.visualize_path:
         for idx, rrt_star in enumerate(rrt_stars):

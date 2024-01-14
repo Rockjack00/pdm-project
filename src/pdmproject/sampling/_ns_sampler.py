@@ -1,12 +1,12 @@
 import traceback
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
-from typing import Any
 import pdmproject.cspace.obstacle as obs
-from pdmproject.cspace.tree import SparseOccupancyTree
 from pdmproject.cspace.obstacle import CartesianIterator, HypercubeIterator
+from pdmproject.cspace.tree import SparseOccupancyTree
 
 from . import SamplerBase
 
@@ -118,7 +118,8 @@ class NullSpaceSampler(SamplerBase):
 
         node_key = self.sample_space._assemble_voxel_key(node_stack)
         bounds = self.sample_space.get_configurations(node_key, depth)
-        print(f'Sampled ({node_key:b}, {depth}) to get ({bounds})')
+
+        # print(f'Sampled ({node_key:b}, {depth}) to get ({bounds[0]}, {bounds[1]})')  # FIXME:DEBUG:REMOVE
 
         return np.random.uniform(bounds[0, :], bounds[1, :])
 
@@ -198,7 +199,7 @@ class NullSpaceSampler(SamplerBase):
 
             # we already filled this cyclinder
             if link == 0 and (new_content - old_content) == 0:
-                print('Already filled this cylinder?')
+                # print('Already filled this cylinder?') # FIXME:DEBUG:REMOVE
                 return
 
         # TODO: get a smarter interior point or multiple interior points
@@ -213,9 +214,10 @@ class NullSpaceSampler(SamplerBase):
         self.sample_space.flood_fill(interior_point)
 
         # debug
-        new_content = self.sample_space._root.sum_values()
-        print(f"[{self.debug_iter}] Obstacle at: {collisions[0,:]},"
-              f" Set {new_content - old_content:>3} voxels. Sample space content: {new_content / self.sample_space.max_content(0):>8.4%}")
-        self.debug_iter += 1
-        if new_content - old_content == 0:
-           breakpoint()
+        if 1:  # FIXME:DEBUG:REMOVE
+            new_content = self.sample_space._root.sum_values()
+            print(f"[{self.debug_iter}] Obstacle at: {collisions[0,:]},"
+                  f" Set {new_content - old_content:>3} voxels. Sample space content: {new_content / self.sample_space.max_content(0):>8.4%}")
+            self.debug_iter += 1
+            if new_content - old_content == 0:
+               breakpoint()

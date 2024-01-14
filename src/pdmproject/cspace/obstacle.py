@@ -9,6 +9,7 @@ h_base = L[0] + L[1]  # base height
 CSPACE_DIM = 3
 MIN_VOXEL_STEP = 0.5
 
+
 def calc_ns(collisions, link, params, limits):
     """Calculate the null space for a given link and collision point.
 
@@ -51,6 +52,7 @@ def calc_ns(collisions, link, params, limits):
     t_q = params[:, q_idx - 2]
     # TODO: restore this for higher dimensions
     # t_q4 = params[:, 2]
+    t_q4 = 0
     q[:, q_idx - 1] = t_q * limits[1, q_idx - 3] + (1 - t_q) * limits[0, q_idx - 3]
 
     # calculate q
@@ -88,7 +90,7 @@ def calc_ns(collisions, link, params, limits):
 
         # use all valid values for q_4
         # TODO: restore this for higher dimensions
-        #q[:, 3] = t_q4 * limits[1, 1] + (1 - t_q4) * limits[0, 1]
+        # q[:, 3] = t_q4 * limits[1, 1] + (1 - t_q4) * limits[0, 1]
 
     q[:, 0] = collision[0] - r_1 * np.cos(theta)
     q[:, 1] = collision[1] - r_1 * np.sin(theta)
@@ -195,33 +197,33 @@ class HypercubeIterator:
         """
         raise NotImplementedError()
 
-        last_param = self.limits[0, param]
-        permutations = (np.arange((self.dimension - 1) ** 2) % self.dimension) + 1
+        # last_param = self.limits[0, param]
+        # permutations = (np.arange((self.dimension - 1) ** 2) % self.dimension) + 1
 
-        step_dim = 0
-        i = 0
-        # self.current_dim
-        while step_dim < self.dimension:
-            outer_param = permutations[i]
-            if i == self.current_dim:
-                continue
+        # step_dim = 0
+        # i = 0
+        # # self.current_dim
+        # while step_dim < self.dimension:
+        #     outer_param = permutations[i]
+        #     if i == self.current_dim:
+        #         continue
 
-            # step in a direction until done
-            done = False
-            while not done:
-                last_param += self.step_functions[step_dim](self.last_point)
-                if last_param <= self.limits[1, param]:
-                    self.last_point[i] = last_param
-                else:
-                    self.last_point[i] = self.limits[1, param]
-                    done = True
-                yield self.last_point
+        #     # step in a direction until done
+        #     done = False
+        #     while not done:
+        #         last_param += self.step_functions[step_dim](self.last_point)
+        #         if last_param <= self.limits[1, param]:
+        #             self.last_point[i] = last_param
+        #         else:
+        #             self.last_point[i] = self.limits[1, param]
+        #             done = True
+        #         yield self.last_point
 
-            # step once in the next direction and reset
-            last_param += self.step_functions[step_dim](self.last_point)
+        #     # step once in the next direction and reset
+        #     last_param += self.step_functions[step_dim](self.last_point)
 
-            last_param = 0
-            step_dim += 1
+        #     last_param = 0
+        #     step_dim += 1
 
     def _sweep(self):
         """March forward, getting the next set of parameters.
@@ -234,9 +236,11 @@ class HypercubeIterator:
             dimension, but will return parameters for an entire face at once.
         """
         spaces = []
-        for i in range(self.d):
+        for i in range(self.dimension):
             if i == self.current_dim:
-                spaces.append([self.current_dir])
+                # ? spaces.append([self.current_dir])
+                spaces.append([self.current_face])
+
             fixed_delta = self.step_functions[i](self.limits, self.resolution)
             param_space = np.linspace(
                 self.limits[0, i], self.limits[1, i], num=np.ceil(1 / fixed_delta)
@@ -282,11 +286,11 @@ class CartesianIterator:
         self.deltas = deltas
         self.dimension = len(deltas)
         self.outer = outer
-        
+
         if limits is None:
             limits = np.indices((2, self.dimension))[0]
         else:
-            assert np.shape(limits) == (2,self.dimension)
+            assert np.shape(limits) == (2, self.dimension)
         self.limits = limits
 
         self.spaces = self._create_spaces()
@@ -303,8 +307,8 @@ class CartesianIterator:
         Returns:
             A numpy array of shape (N,D) of normalized parameters used to
             select the parameters from a D-dimensional hypercube. When called
-            successively, this will march through the entire hypercube, in 
-            lexicographical order. N is dependent on the step size for each 
+            successively, this will march through the entire hypercube, in
+            lexicographical order. N is dependent on the step size for each
             dimension, but will return all parameters for an entire step in the
             first dimension at once.
         """
@@ -330,9 +334,9 @@ class CartesianIterator:
         spaces = []
         lengths = np.ceil(1 / np.array(self.deltas)).astype(int)
         for i in range(self.dimension):
-            param_space = np.linspace(self.limits[0, i], 
-                                      self.limits[1, i], 
-                                      num=lengths[i])
+            param_space = np.linspace(
+                self.limits[0, i], self.limits[1, i], num=lengths[i]
+            )
             spaces.append(param_space)
         return spaces
 
@@ -348,7 +352,7 @@ class CartesianIterator:
             each input array, and D is the number of input arrays.
         """
         la = len(arrays)
-        dtype = np.result_type(*arrays)
+        # dtype = np.result_type(*arrays)
         arr = np.empty([len(a) for a in arrays] + [la], dtype=float)
         for i, a in enumerate(np.ix_(*arrays)):
             arr[..., i] = a
@@ -361,8 +365,13 @@ def dtheta_step(sample_space):
     Arguments:
         sample_space: A SparseOccupanyTree containing the voxels to iterate over.
     """
-    voxel_size = min((sample_space.limits[1, :2] - sample_space.limits[0, :2]) / 
-                     (2**sample_space.res)) * MIN_VOXEL_STEP
+    voxel_size = (
+        min(
+            (sample_space.limits[1, :2] - sample_space.limits[0, :2])
+            / (2**sample_space.res)
+        )
+        * MIN_VOXEL_STEP
+    )
     return np.arcsin(voxel_size / R[0]) / (2 * np.pi)
 
 
@@ -409,91 +418,91 @@ def make_voxel_fixed(q):
 
 # def calc_ns2(collision, link, r=0, theta=0, phi=0, alpha_1=0, alpha_2=0):
 #     """Calculate the null space for a given link and collision point.
-# 
+#
 #     Select the solution(s) returned are based on the input parameters.
 #     Input parameters must either be a constant or column vectors of the same length.
-# 
+#
 #     Arguments:
 #         collision: A workspace vector where the link is in collision.
 #         link: An index from 0-3 to select which link to use where the base is
 #             link 0. Link 4 is the robot hand but it is ignored for the
 #             purpose of calculating the null space because we model it as a
 #             cylinder.
-# 
+#
 #     Parameters, each a constant or a column vector of length N:
 #         r: Radius from joint 3 to collision. Ignored if link > 0.
 #         theta: Angle r_1 makes with XZ plane.
 #         phi: Azimuth angle from object to joint 4. Ignored if link < 1.
 #         alpha_1: Interior angle between link 1 and r_2. Ignored if link < 2.
 #         alpha_2: Interior angle between link 2 and r_3. Ignored if link < 3.
-# 
+#
 #     Returns:
 #         A numpy array of size (N,6) where configuration n corresponds to
 #         solution n from the input parameters.
 #     """
 #     N = np.shape(theta)[0]  # number of data points
-# 
+#
 #     # ensure input shapes are the same
 #     assert np.shape(r) == () or np.shape(r)[0] == N
 #     assert np.shape(phi) == () or np.shape(phi)[0] == N
 #     assert np.shape(alpha_1) == () or np.shape(alpha_1)[0] == N
 #     assert np.shape(alpha_2) == () or np.shape(alpha_2)[0] == N
-# 
+#
 #     # base
 #     q = np.zeros((N, 6))
 #     if link == 0:
 #         q[:, :2] = cylindrical_ns(collision, r, theta)
 #         return q
-# 
+#
 #     h = collision.z - (L[0] + L[1])
 #     r_1 = h * np.tan(phi)
 #     q[:, :2] = cylindrical_ns(collision, r_1, theta)
-# 
+#
 #     # link 1
 #     q[:, 2] = theta  # range from 0 to 2pi
 #     q[:, 3] = np.pi / 2 - phi  # range from 0 to pi
 #     if link == 1:
 #         return q
-# 
+#
 #     # link 2
 #     r_2 = np.sqrt(r_1**2 + h**2)
 #     q[:, 2] += np.pi - alpha_1 - np.arcsin(L[2] * np.sin(alpha_1) / r_2)
 #     q[:, 4] = alpha_1 - np.pi  # range from -pi to pi
 #     if link == 2:
 #         return q
-# 
+#
 #     # link 3 (and 4)
 #     r_3 = np.sqrt(L[2] ** 2 + r_2**2)
 #     q[:, 4] -= np.pi - alpha_2 - np.arcsin(L[3] * np.sin(alpha_2) / r_3)
 #     q[:, 5] = alpha_2 - np.pi  # range from -pi to pi
 #     return q
-# 
-# 
+#
+#
 # def cylindrical_ns(collision, r, theta):
 #     N = np.shape(r)[0]  # number of points
-# 
+#
 #     # ensure input shapes are the same
 #     assert np.shape(theta)[0] == N
-# 
+#
 #     q = np.zeros((N, 2))
 #     q[:, 0] = collision.x - r * np.cos(theta)
 #     q[:, 1] = collision.y - r * np.sin(theta)
-# 
+#
 #     return q
-# 
-# 
+#
+#
 # def update_sample_space2(collisions, sample_space, link):
 #     N_POINTS = 20
 #     ERROR = 1e-10
 #     h = collision.z - (L[0] + L[1])
 #     r2_max = np.sum(L[2 : 2 + link] + ERROR)
-# 
+#
 #     r = np.linspace(0, R[0], N_POINTS)
 #     theta = np.linspace(0, 2 * np.pi, N_POINTS)
 #     phi = np.linspace(-np.arccos(h / r2_max), np.arccos(h / r2_max), N_POINTS)
 #     alpha_1 = np.linspace(np.pi + q5_min, np.pi - q5_max, N_POINTS)
 #     alpha_2 = np.linspace(np.pi + q6_min, np.pi - q6_max, N_POINTS)
-# 
+#
 #     midpoints = []
 #     node_stack = []
 #     for collision in collisions:
@@ -503,17 +512,17 @@ def make_voxel_fixed(q):
 #         # Right now we have no guarantees that the regions don't have holes
 #         # so flood-fill might escape the boundary.
 #         voxels = sample_space.locate(points)
-# 
+#
 #         # TODO: parallelize this with multiple workers
 #         # may require load balancing
 #         for voxel in voxels:
 #             node_stack = sample_space.set(voxel, node_stack=node_stack)
-# 
+#
 #     # TODO: get a smarter interior point or multiple interior points
 #     # multiple interior points would require load balancing between workers
 #     interior_point = np.average(midpoints, axis=0)
 #     sample_space.flood_fill(interior_point)
-# 
+#
 
 # TODO: convert link equations to use these general functions
 # def planar_joint_ns(collision, params, length, r_up, downstream=None):
