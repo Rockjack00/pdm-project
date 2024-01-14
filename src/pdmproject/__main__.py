@@ -309,7 +309,7 @@ def present_result(rrt_star: RRTStar, args):
 
     if rrt_star.has_found_path():
         print(
-            f" \033[92;1m[SUCCES]\033[0m A path was found after {rrt_star.num_iter_till_first_path} iterations and {rrt_star.explored_nodes_till_first_path} explored Nodes"
+            f" \033[92;1m[SUCCES]\033[0m A path was found after {rrt_star.num_iter_till_first_path} iterations, {rrt_star.collision_count_till_first_path} collisions and {rrt_star.explored_nodes_till_first_path} explored Nodes"
         )
         print(
             f" \033[92;1m[SUCCES]\033[0m The final Path length was {rrt_star.path_length: 5.02f}"
@@ -321,7 +321,10 @@ def present_result(rrt_star: RRTStar, args):
         f"  \033[93;1m[STATS]\033[0m Explored {rrt_star.explored_nodes} Nodes during path computation."
     )
     print(
-        f"  \033[93;1m[STATS]\033[0m Rejected {rrt_star.collision_count} Node samples during path computation."
+        f"  \033[93;1m[STATS]\033[0m Rejected {rrt_star.rejected_nodes} Node samples during path computation."
+    )
+    print(
+        f"  \033[93;1m[STATS]\033[0m Collided {rrt_star.collision_count} times in during path computation."
     )
 
 
@@ -350,13 +353,16 @@ def present_results(rrt_stars: list[RRTStar], args):
 
     if all(rrt_star.has_found_path() for rrt_star in rrt_stars):
         print(
-            f" \033[92;1m[SUCCES]\033[0m A path was found after {sum(rrt_star.num_iter_till_first_path or 0 for rrt_star in rrt_stars)/len(rrt_stars)} iterations and {sum(rrt_star.explored_nodes_till_first_path or 0 for rrt_star in rrt_stars)/len(rrt_stars)} explored Nodes on average."
+            f" \033[92;1m[SUCCES]\033[0m A path was found after {sum(rrt_star.num_iter_till_first_path or 0 for rrt_star in rrt_stars)/len(rrt_stars)} iterations, {sum(rrt_star.collision_count_till_first_path or 0 for rrt_star in rrt_stars)/len(rrt_stars)} collisions and {sum(rrt_star.explored_nodes_till_first_path or 0 for rrt_star in rrt_stars)/len(rrt_stars)} explored Nodes on average."
         )
         print(
             f"\tITERATIONS: {list(rrt_star.num_iter_till_first_path for rrt_star in rrt_stars)}"
         )
         print(
             f"\tEXPLORED NODES: {list(rrt_star.explored_nodes_till_first_path for rrt_star in rrt_stars)}"
+        )
+        print(
+            f"\tCOLLISIONS: {list(rrt_star.collision_count_till_first_path for rrt_star in rrt_stars)}"
         )
 
         print(
@@ -373,6 +379,9 @@ def present_results(rrt_stars: list[RRTStar], args):
         print(
             f"\tEXPLORED NODES: {list(rrt_star.explored_nodes_till_first_path for rrt_star in rrt_stars)}"
         )
+        print(
+            f"\tCOLLISIONS: {list(rrt_star.collision_count_till_first_path for rrt_star in rrt_stars)}"
+        )
 
         print(" \033[91;1m[FAILED]\033[0m The final Path length was \033[1mDNF\033[0m")
         print(
@@ -382,7 +391,10 @@ def present_results(rrt_stars: list[RRTStar], args):
         f"  \033[93;1m[STATS]\033[0m Explored {sum(rrt_star.explored_nodes for rrt_star in rrt_stars)} Nodes during path computation.\n\tPER RUN: {list(rrt_star.explored_nodes for rrt_star in rrt_stars)}"
     )
     print(
-        f"  \033[93;1m[STATS]\033[0m Rejected {sum(rrt_star.collision_count for rrt_star in rrt_stars)} Node samples in total during all path computation.\n\tPER RUN: {list(rrt_star.collision_count for rrt_star in rrt_stars)}"
+        f"  \033[93;1m[STATS]\033[0m Rejected {sum(rrt_star.rejected_nodes for rrt_star in rrt_stars)} Node samples in total during all path computation.\n\tPER RUN: {list(rrt_star.rejected_nodes for rrt_star in rrt_stars)}"
+    )
+    print(
+        f"  \033[93;1m[STATS]\033[0m Collided {sum(rrt_star.collision_count for rrt_star in rrt_stars)} times in total during all path computation.\n\tPER RUN: {list(rrt_star.collision_count for rrt_star in rrt_stars)}"
     )
 
 

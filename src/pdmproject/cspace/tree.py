@@ -1,5 +1,12 @@
+from itertools import takewhile
+from typing import Optional, overload
+
 import numpy as np
 import numpy.typing as npt
+
+from . import BinaryLeafNode, SparseVoxelTreeNode, TopologyNode
+
+NodeStack = list[tuple[int, Optional[SparseVoxelTreeNode]]]
 
 
 class SparseOccupancyTree:
@@ -8,7 +15,13 @@ class SparseOccupancyTree:
     Voxels only store binary information and nodes store a count of the number of voxels set to True in each of their children.
     """
 
-    def __init__(self, dimension, resolution, limits=None, wraps=None):
+    def __init__(
+        self,
+        dimension: int,
+        resolution: int,
+        limits: Optional[npt.NDArray[np.float64]] = None,
+        wraps=None,
+    ):
         """Create a sparse occupancy tree.
 
         Args:
@@ -41,19 +54,24 @@ class SparseOccupancyTree:
             limits = np.indices((2, dimension))[0]
         if wraps is None:
             wraps = [False] * dimension
+        assert limits is not None
         assert np.shape(limits) == (2, dimension)
         assert len(wraps) == dimension
 
-        self.d = dimension  # Dimension of the tree
-        self.res = resolution  # Highest tree depth
+        self.d: int = dimension  # Dimension of the tree
+        self.res: int = resolution  # Highest tree depth
         self._root = TopologyNode(self.d)  # Root node
-        self.limits = limits  # Minimum and maximum values for each dimension
-        self.wraps = wraps
-        # TODO: add a node_stack here (and maybe depth?) to make traversal easier?
+        self.limits: npt.NDArray[
+            np.float64
+        ] = limits  # Minimum and maximum values for each dimension
+        self.wraps: list[bool] = wraps
+
+        # A set containing (node_key, depth) tuples for filled cells
+        self.filled_set: set[tuple[int, int]] = set()
 
     def __repr__(self):
         """The string representation of a 64-tree."""
-        return f"({2 ** self.d}-Tree [res={self.res}, content={100 * self._root.sum_values() / self.max_content(0)}%])"
+        return f"({2 ** self.d}-Tree [res={self.res}, content={self._root.sum_values() / self.max_content(0):.2%}])"
 
     # TODO: maybe implement topology as a hash table, using the z-order as the hash code?
     # TODO: include a depth header for the keys so they can be used for nodes as well
@@ -88,7 +106,7 @@ class SparseOccupancyTree:
 
         return z
 
-    def locate(self, points: npt.NDArray):
+    def locate(self, points: npt.NDArray) -> npt.NDArray[np.integer]:
         """Get the voxel(s) which encoloses the point(s).
 
         If a point lies on a voxel boundary, return the voxel with minimum value in the orthogonal direction.
@@ -137,16 +155,29 @@ class SparseOccupancyTree:
 
         return vectors
 
-    def max_content(self, depth):
+    def max_content(self, depth: int) -> int:
         """Calculate the maximum content of a node at this depth.
 
         Args:
-            depth: The depth of a node in the tree.
+            depth (int): The depth of a node in the tree.
+
+        Returns:
+            int: The maximum content of a node at the given depth.
         """
         assert depth >= 0 and depth <= self.res
         return 2 ** ((self.res - depth) * self.d)
 
-    def make_node(self, voxel, depth=None):
+    @overload
+    def make_node(self, voxel: int, depth: Optional[int] = None) -> tuple[int, int]:
+        ...
+
+    @overload
+    def make_node(
+        self, voxel: npt.NDArray[np.integer], depth: Optional[int] = None
+    ) -> tuple[int, int]:
+        ...
+
+    def make_node(self, voxel, depth: Optional[int] = None):
         """Get the node_key for the parent node containing voxel.
 
         Args:
@@ -157,13 +188,12 @@ class SparseOccupancyTree:
         Returns:
             A voxel key using only the first depth indices.
         """
-        if depth is None:
-            depth = self.res
+        depth = depth or self.res
         assert depth >= 0 and depth <= self.res
 
         return voxel & (2 ** (self.d * depth) - 1), depth
 
-    def get_configurations(self, node_key, depth=None):
+    def get_configurations(self, node_key: int, depth: Optional[int] = None):
         """Get a range of valid configurations contained in node.
 
         Args:
@@ -187,7 +217,9 @@ class SparseOccupancyTree:
         )
         return limits
 
-    def _insert(self, parent, index, depth):
+    def _insert(
+        self, parent: TopologyNode, index: int, depth: int
+    ) -> Optional[SparseVoxelTreeNode]:
         """A helper to insert a new child node at index.
 
         Args:
@@ -207,6 +239,9 @@ class SparseOccupancyTree:
             next_node = TopologyNode(self.d)
         else:
             next_node = BinaryLeafNode(self.d)
+
+        assert next_node is not None
+
         parent.children[index] = next_node
         parent.values[index] = next_node.sum_values()
         return next_node
@@ -215,7 +250,12 @@ class SparseOccupancyTree:
         """Merge all of the nodes children into one."""
         raise NotImplementedError
 
-    def _traverse(self, node_stack, voxel, insert=False):
+    def _traverse(
+        self,
+        node_stack: NodeStack,
+        voxel: npt.ArrayLike,
+        insert=False,
+    ) -> NodeStack:
         """Walk from the node on the top of node_stack to the leaf node which contains the voxel.
 
         Assumes node_stack is up to date with the tree.
@@ -242,15 +282,21 @@ class SparseOccupancyTree:
         # NOTE: the head of this stack is at 0 instead of -1
         id_mask = 2 ** (self.d) - 1
         id_stack = [(voxel >> self.d * i) & id_mask for i in range(self.res)]
+        # node_id = NodeID(voxel, self.d)
 
         # Find the closest common ancestor
-        i = 0
-        while (
-            i < len(node_stack)
-            and node_stack[i][0] == id_stack[i]
-            and node_stack[i][1] is not None
-        ):
-            i += 1
+        i = len(
+            list(
+                (
+                    takewhile(
+                        lambda item: (
+                            item[1][0] == id_stack[item[0]] and item[1][1] is not None
+                        ),
+                        enumerate(node_stack),
+                    )
+                )
+            )
+        )
 
         # navigate down branch
         node_stack = node_stack[:i]
@@ -265,7 +311,8 @@ class SparseOccupancyTree:
                 # reached the voxels
                 next_node = None
             else:
-                next_node = cur_node.children[next_idx]
+                assert isinstance(cur_node, TopologyNode)
+                next_node: Optional[SparseVoxelTreeNode] = cur_node.children[next_idx]
                 # insert a new node if it doesn't exist
                 if insert and next_node is None:
                     next_node = self._insert(cur_node, next_idx, i + 1)
@@ -278,7 +325,30 @@ class SparseOccupancyTree:
             i += 1
         return node_stack
 
-    def is_full(self, node_key, depth=None, node_stack=None):
+    @overload
+    def is_full(
+        self,
+        node_key: int,
+        depth: Optional[int] = None,
+        node_stack: None = None,
+    ) -> bool:
+        ...
+
+    @overload
+    def is_full(
+        self,
+        node_key: int,
+        depth: Optional[int] = None,
+        node_stack: NodeStack = ...,
+    ) -> tuple[bool, NodeStack]:
+        ...
+
+    def is_full(
+        self,
+        node_key: int,
+        depth: Optional[int] = None,
+        node_stack: Optional[NodeStack] = None,
+    ) -> bool | tuple[bool, NodeStack]:
         """Check if a node is set.
 
         Args:
@@ -305,8 +375,14 @@ class SparseOccupancyTree:
             node_stack = []
         node_stack = self._traverse(node_stack, node_key)
 
+        if (node_key, depth) in self.filled_set:
+            if return_stack:
+                return True, node_stack
+            return True
+
         # check if a voxel is set
         if depth == self.res and len(node_stack) == self.res:
+            assert isinstance(node_stack[-2][1], BinaryLeafNode)
             is_set = node_stack[-2][1].values & (1 << node_stack[-1][0]) > 0
 
         # check if a node is filled
@@ -315,16 +391,64 @@ class SparseOccupancyTree:
             if parent_idx < 0:
                 parent = self._root
             else:
-                parent = node_stack[parent_idx][1]
+                parent: TopologyNode = node_stack[parent_idx][1]  # type: ignore
             is_set = parent.values[node_stack[parent_idx + 1][0]] >= self.max_content(
                 depth
             )
+
+        if is_set:
+            self.filled_set.add((node_key, depth))
 
         if return_stack:
             return is_set, node_stack
         return is_set
 
-    def set(self, node_key, depth=None, node_stack=None):
+    def paint(
+        self,
+        voxel,
+        brush_size=1,
+        directions=None,
+        node_stack: Optional[NodeStack] = None,
+    ):
+        """Set the center voxel and brush_size of its nearest neighbors in the specified directions.
+
+        Args:
+            voxel: A voxel key in the center of the group to paint.
+            brush_size: The number of neighboring voxels to set.
+            directions: A collection of flags where each dimension has a
+                positive and negative direction. Defaults to all directions.
+                For 6 dimensions:       |654321 654321|
+                                        |------ ++++++|
+            node_stack: A list of key/value pairs where the value is a node in
+                the tree and the key is the index of the node from its parent.
+                The node stack cannot contain more elements than the max tree
+                depth (self.res).
+        """
+        if directions is None:
+            directions = 2 ** (self.d * 2) - 1  # all directions
+        if node_stack is None:
+            node_stack = []
+        node_stack = self._traverse(node_stack, voxel, insert=True)
+
+        voxels = {voxel}
+        i = 0
+        while i < brush_size:
+            new_voxels = {}
+            for voxel in voxels:
+                new_voxels.update(self.get_neighbors(voxel, directions))
+            voxels = new_voxels
+            i += 1
+
+        node_stack = []
+        for voxel in voxels:
+            node_stack = self.set(voxel, node_stack=node_stack)
+
+    def set(
+        self,
+        node_key: int,
+        depth: Optional[int] = None,
+        node_stack: Optional[list[tuple[int, Optional[SparseVoxelTreeNode]]]] = None,
+    ):
         """Set all of the voxels contained in node to true and update counts.
 
         Performs merging operations on the tree if necessary.
@@ -366,13 +490,15 @@ class SparseOccupancyTree:
             next_idx = node_stack[i][0]
             child_max_content = self.max_content(i + 1)
 
-            if child_max_content == 1:
+            if isinstance(cur_node, BinaryLeafNode):
                 # current node is a leaf so update voxel individually
                 cur_node.increment(next_idx)
-            elif cur_node.values[next_idx] + content < child_max_content:
+            elif cur_node.values[next_idx] + content < child_max_content:  # type: ignore
+                assert isinstance(cur_node, TopologyNode)
                 # add content to ancestor nodes
                 cur_node.values[next_idx] += content
             else:
+                assert isinstance(cur_node, TopologyNode)
                 # Prune the tree once a node is filled
                 content = child_max_content - cur_node.values[next_idx]
                 cur_node.children[next_idx] = None
@@ -381,30 +507,6 @@ class SparseOccupancyTree:
                 filled_depth = i + 1
 
             i -= 1
-
-        #        content = self.max_content(depth)
-        #        i = 0
-        #        cur_node = self._root
-        #        while i < depth:
-        #            next_idx = node_stack[i][0]
-        #
-        #            # current node is a leaf so update voxel individually
-        #            if i == self.res - 1:
-        #                cur_node.increment(next_idx)
-        #                break
-        #            cur_node.values[next_idx] += content
-        #
-        #            # Prune the tree once a node is filled
-        #            child_max_content = self.max_content(i + 1)
-        #            if cur_node.values[next_idx] >= child_max_content:
-        #                cur_node.children[next_idx] = None
-        #                cur_node.values[next_idx] = child_max_content
-        #                return node_stack[:i+1]
-        #
-        #            # increment
-        #            cur_node = node_stack[i][1]
-        #            i += 1
-
         return node_stack[:filled_depth]
 
     def unset(self, voxels):
@@ -511,7 +613,7 @@ class SparseOccupancyTree:
             key += node_stack[i][0]
         return key
 
-    def _get_smallest_neighbors(self, node_stack, direction):
+    def _get_smallest_neighbors(self, node_stack: NodeStack, direction):
         """A helper to get all the smallest descendents of a node from the specified direction.
 
         Args:
@@ -544,13 +646,10 @@ class SparseOccupancyTree:
             direction >>= self.d
             children = np.array([i for i in range(2**self.d) if (i & direction) > 0])
 
-        # if depth == 4:
-        #    breakpoint()
-
         neighbors = []
         for child_idx in children:
-            if depth < 4:
-                child = node_stack[-1][1].children[child_idx]
+            if depth < self.res - 1:
+                child = node_stack[-1][1].children[child_idx]  # type: ignore # This is a TopologyNode
             else:
                 # this is a leaf node so its children must be voxels
                 child = None
@@ -585,95 +684,6 @@ class SparseOccupancyTree:
                 continue
             queue += self.get_smallest_neighbors(node_key, directions, depth)
             node_stack = self.set(node_key, depth, node_stack)
-
-
-# TODO: define __get__ and __set__ for brackets to modify children
-class TopologyNode:
-    """A node in a sparse voxel tree data structure which contains topological information."""
-
-    def __init__(self, dimension):
-        """Create a TopologyNode.
-
-        Args:
-            dimension: The dimension of this node. It will have 2^d children.
-        """
-        self.d = dimension  # dimension of the tree
-        self.children = [None] * (2**self.d)  # A list of references to the children
-        self.values = np.zeros(
-            2**self.d, dtype=int
-        )  # A list of values assiciated with each child
-
-    def __repr__(self):
-        """The string representation of a topological node."""
-        return (
-            f"({2 ** self.d}-Node [content={self.sum_values()}, values={self.values}])"
-        )
-
-    def increment(self, index):
-        """Increment the value of the child index.
-
-        Args:
-            index: The child index to set.
-
-        Returns:
-            The new sum of all values of children.
-        """
-        self.values[index] += 1
-        return self.sum_values()
-
-    def sum_values(self):
-        """Get the sum of all values of the children."""
-        return np.sum(self.values)
-
-    def get_values(self):
-        """Get a list of all values of the children."""
-        return self.values
-
-    def get_child(self, index):
-        """Get the child at index."""
-        return self.children[index]
-
-
-# TODO: define __get__ and __set__ for brackets to modify children
-class BinaryLeafNode:
-    """A node in a sparse occupancy tree data structure which contains binary data for a collection of leaves. Each voxel is represented with one bit."""
-
-    def __init__(self, dimension):
-        """Create a BinaryLeafNode.
-
-        Args:
-            dimension: The dimension of this node. It will have 2^d children.
-        """
-        self.d = dimension  # dimension of the tree
-        self.values = 0  # A list of values assiciated with each voxel
-
-    def __repr__(self):
-        """The string representation of a leaf node."""
-        return f"({2 ** self.d}-BinaryLeafNode [content={self.sum_values()}, values={self.values:b}])"
-
-    def increment(self, index):
-        """Set the value at index to 1.
-
-        Args:
-           index: The voxel index to set.
-
-        Returns:
-            The new sum of all values of children.
-        """
-        self.values |= 1 << index
-        return self.sum_values()
-
-    def sum_values(self):
-        """Get the sum of all values of the children."""
-        return self.values.bit_count()
-
-    def get_values(self):
-        """Get a list of all values of the children."""
-        return (self.values & (1 << np.arange(2**self.d)) > 0) * 1
-
-    def get_child(self, index):
-        """Always returns none."""
-        return None
 
 
 if __name__ == "__main__":
