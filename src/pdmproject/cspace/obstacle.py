@@ -364,7 +364,7 @@ class CartesianIterator:
         return arr.reshape(-1, la)
 
 
-def dtheta_step(sample_space: SparseOccupancyTree) -> float:
+def dtheta_step(sample_space: 'SparseOccupancyTree') -> float:
     """Calculate a fixed step size for theta (used only for link 0).
 
     Args:
@@ -384,7 +384,7 @@ def dtheta_step(sample_space: SparseOccupancyTree) -> float:
 
 
 def dq3_step_l1(
-    sample_space: SparseOccupancyTree, q3: float, q4: float, h: float
+    sample_space: 'SparseOccupancyTree', q3: float, q4: float, h: float
 ) -> float:
     """Calculate the stepsize in the q3 axis for Link 1 collisions.
 
@@ -415,7 +415,7 @@ def dq3_step_l1(
 
 
 def dq4_step_l1(
-    sample_space: SparseOccupancyTree, q3: float, q4: float, h: float
+    sample_space: 'SparseOccupancyTree', q3: float, q4: float, h: float
 ) -> float:
     """Calculate the stepsize in the q4 axis for Link 1 collisions.
 
@@ -445,7 +445,7 @@ def dq4_step_l1(
     )
 
 
-def voxel_step(q, sample_space: SparseOccupancyTree) -> float:
+def voxel_step(q, sample_space: 'SparseOccupancyTree') -> float:
     """Calculate a fixed step size for one voxel in joint q.
 
     Args:
