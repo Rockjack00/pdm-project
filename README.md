@@ -1,6 +1,5 @@
-# Sample Space Shrinking RRT* 
- ![Example CI Badge](https://github.com/github/docs/actions/workflows/main.yml/badge.svg)
- [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+# Sample Space Shrinking RRT*
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 > _#TODO_: come up with a good name
 
@@ -44,11 +43,8 @@ rrt-star-bench-single-run -s 41 -i 500 -NS -vp -vs
 
 
 ### Description
-This repo contains source code and demos accompanying our [final project report](docs/report.pdf).
-In this repo we implement an adaptation of the RRT* algorithm a modified
-collsision checker as a global planner with using a holonomic high-five robot
-in a dynamic(?) environment. The robot is being simulated in the `gym_envs_urdf`
-environment.
+This repository contains source code and demos accompanying our [final project report](docs/report.pdf).
+In this repository we implement an adaptation of the RRT* algorithm a modified collision checker as a global planner while using a holonomic high-five robot. The robot is being simulated in the `gym_envs_urdf` environment.
 
 
 ## Setup Instructions
