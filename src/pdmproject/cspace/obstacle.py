@@ -1,4 +1,9 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from pdmproject.cspace.tree import SparseOccupancyTree
 
 # TODO: put this somewhere better
 R = np.array([0.2, 0.05, 0.05, 0.05, 0.05])  # Link radii
@@ -373,6 +378,66 @@ def dtheta_step(sample_space):
         * MIN_VOXEL_STEP
     )
     return np.arcsin(voxel_size / R[0]) / (2 * np.pi)
+
+
+def dq3_step_l1(
+    sample_space: SparseOccupancyTree, q3: float, q4: float, h: float
+) -> float:
+    """Calculate the stepsize in the q3 axis for Link 1 collisions.
+
+    Args:
+        sample_space (SparseOccupanyTree): A SparseOccupanyTree containing the voxels to iterate over.
+        q3 (float): The current q3 value
+        q4 (float): The current q4 value
+        h (float): The h-value.
+
+    Returns:
+        float: The stepsize in q3.
+    """
+    voxel_size = (
+        (sample_space.limits[1, :2] - sample_space.limits[0, :2])
+        / (2**sample_space.res)
+    ) * MIN_VOXEL_STEP
+
+    dq1 = voxel_size[0]
+    dq2 = voxel_size[1]
+
+    return np.min(
+        (
+            np.abs(dq1 * np.tan(q4) / (h * np.sin(q3))),
+            np.abs(-dq2 * np.tan(q4) / (h * np.cos(q3))),
+        ),
+        axis=0,
+    )
+
+
+def dq4_step_l1(sample_space: SparseOccupancyTree, q3: float, q4: float, h: float) -> float:
+    """Calculate the stepsize in the q4 axis for Link 1 collisions.
+
+    Args:
+        sample_space (SparseOccupanyTree): A SparseOccupanyTree containing the voxels to iterate over.
+        q3 (float): The current q3 value
+        q4 (float): The current q4 value
+        h (float): The h-value.
+
+    Returns:
+        float: The stepsize in q4.
+    """
+    voxel_size = (
+        (sample_space.limits[1, :2] - sample_space.limits[0, :2])
+        / (2**sample_space.res)
+    ) * MIN_VOXEL_STEP
+
+    dq1 = voxel_size[0]
+    dq2 = voxel_size[1]
+    
+    return np.min(
+        (
+            np.abs(dq1 * np.sin(q4) ** 2 / (h * np.cos(q3))),
+            np.abs(dq2 * np.sin(q4) ** 2 / (h * np.sin(q3))),
+        ),
+        axis=0,
+    )
 
 
 def voxel_step(q, sample_space):
