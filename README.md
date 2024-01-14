@@ -21,6 +21,11 @@ TU Delft course RO47005 Planning and Decision Making
 December 14th, 2023
 
 
+### Description
+This repository contains source code and demos accompanying our [final project report](docs/report.pdf).
+In this repository we implement an adaptation of the RRT* algorithm a modified collision checker as a global planner while using a holonomic high-five robot. The robot is being simulated in the `gym_envs_urdf` environment.
+
+
 ### Quick start
 First, complete the [Setup Instructions](#setup-instructions).
 
@@ -39,12 +44,6 @@ rrt-star-bench-single-run -s 41 -i 500 -vw -vp -vs
 # Runs a single checkpoint RRT star test with the Nullspace Sampler, with path and simulation visualizations
 rrt-star-bench-single-run -s 41 -i 500 -NS -vp -vs
 ```
-
-
-
-### Description
-This repository contains source code and demos accompanying our [final project report](docs/report.pdf).
-In this repository we implement an adaptation of the RRT* algorithm a modified collision checker as a global planner while using a holonomic high-five robot. The robot is being simulated in the `gym_envs_urdf` environment.
 
 
 ## Setup Instructions
