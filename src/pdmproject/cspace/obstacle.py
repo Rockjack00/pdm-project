@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from pdmproject.cspace.tree import SparseOccupancyTree
+    from pdmproject.cspace import SparseOccupancyTree
 
 # TODO: put this somewhere better
 R = np.array([0.2, 0.05, 0.05, 0.05, 0.05])  # Link radii
@@ -364,11 +364,14 @@ class CartesianIterator:
         return arr.reshape(-1, la)
 
 
-def dtheta_step(sample_space):
+def dtheta_step(sample_space: SparseOccupancyTree) -> float:
     """Calculate a fixed step size for theta (used only for link 0).
 
-    Arguments:
+    Args:
         sample_space: A SparseOccupanyTree containing the voxels to iterate over.
+
+    Returns:
+        (float): The fixed theta step size.
     """
     voxel_size = (
         min(
@@ -411,7 +414,9 @@ def dq3_step_l1(
     )
 
 
-def dq4_step_l1(sample_space: SparseOccupancyTree, q3: float, q4: float, h: float) -> float:
+def dq4_step_l1(
+    sample_space: SparseOccupancyTree, q3: float, q4: float, h: float
+) -> float:
     """Calculate the stepsize in the q4 axis for Link 1 collisions.
 
     Args:
@@ -430,7 +435,7 @@ def dq4_step_l1(sample_space: SparseOccupancyTree, q3: float, q4: float, h: floa
 
     dq1 = voxel_size[0]
     dq2 = voxel_size[1]
-    
+
     return np.min(
         (
             np.abs(dq1 * np.sin(q4) ** 2 / (h * np.cos(q3))),
@@ -440,25 +445,31 @@ def dq4_step_l1(sample_space: SparseOccupancyTree, q3: float, q4: float, h: floa
     )
 
 
-def voxel_step(q, sample_space):
+def voxel_step(q, sample_space: SparseOccupancyTree) -> float:
     """Calculate a fixed step size for one voxel in joint q.
 
-    Arguments:
+    Args:
         q: The joint number.
-        sample_space: A SparseOccupanyTree containing the voxels to iterate over.
+        sample_space (SparseOccupancyTree): A SparseOccupanyTree containing the voxels to iterate over.
+
+    Returns:
+        float: the fixed stepsize fod one voxel
     """
     return 1 / (2**sample_space.res) * MIN_VOXEL_STEP
 
 
-def dtheta_fixed(limits, resolution):
+def dtheta_fixed(limits, resolution) -> float:
     """Calculate a fixed step size for theta (used only for link 0).
 
-    Arguments:
+    Args:
         limits: A numpy array of shape (2,d) which indicates minimum and
             maximum values for each dimension. Defaults to [0,1] for every
             dimension.
         resolution: The highest tree depth. The number of cells along any
             given dimension will be 2^resolution.
+
+    Returns:
+        float: the fixed theta step size for link 0 iteration
     """
     voxel_size = min((limits[1, :2] - limits[0, :2]) / (2**resolution))
     return np.arcsin(voxel_size / R[0]) / (2 * np.pi * R[0])

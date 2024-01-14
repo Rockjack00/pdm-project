@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from itertools import takewhile
 from typing import Optional, overload
 
@@ -18,8 +17,8 @@ class SparseOccupancyTree:
 
     def __init__(
         self,
-        dimension,
-        resolution,
+        dimension: int,
+        resolution: int,
         limits: Optional[npt.NDArray[np.float64]] = None,
         wraps=None,
     ):
@@ -59,15 +58,16 @@ class SparseOccupancyTree:
         assert np.shape(limits) == (2, dimension)
         assert len(wraps) == dimension
 
-        self.d = dimension  # Dimension of the tree
-        self.res = resolution  # Highest tree depth
+        self.d: int = dimension  # Dimension of the tree
+        self.res: int = resolution  # Highest tree depth
         self._root = TopologyNode(self.d)  # Root node
         self.limits: npt.NDArray[
             np.float64
         ] = limits  # Minimum and maximum values for each dimension
-        self.wraps = wraps
-        # TODO: add a node_stack here (and maybe depth?) to make traversal easier?
-        self.filled_set = set()
+        self.wraps: list[bool] = wraps
+
+        # A set containing (node_key, depth) tuples for filled cells
+        self.filled_set: set[tuple[int, int]] = set()
 
     def __repr__(self):
         """The string representation of a 64-tree."""
@@ -155,11 +155,14 @@ class SparseOccupancyTree:
 
         return vectors
 
-    def max_content(self, depth):
+    def max_content(self, depth: int) -> int:
         """Calculate the maximum content of a node at this depth.
 
         Args:
-            depth: The depth of a node in the tree.
+            depth (int): The depth of a node in the tree.
+
+        Returns:
+            int: The maximum content of a node at the given depth.
         """
         assert depth >= 0 and depth <= self.res
         return 2 ** ((self.res - depth) * self.d)
