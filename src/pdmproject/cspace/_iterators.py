@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import numpy as np
 import numpy.typing as npt
+
+if TYPE_CHECKING:
+    from . import SparseOccupancyTree
 
 
 class IteratorBase(ABC):
@@ -24,7 +27,7 @@ class IteratorBase(ABC):
         """Reset this and return it."""
         self._reset()
         return self
-    
+
     @abstractmethod
     def _reset(self):
         """Reset the iterator from the first point."""
@@ -130,24 +133,28 @@ class HypercubeIterator(IteratorBase):
     lexicographically with a maximum step size at each point.
     """
 
-    def __init__(self, step_functions, sample_space, collisions, limits=None):
+    def __init__(
+        self,
+        step_functions: list[Callable],
+        sample_space: "SparseOccupancyTree",
+        collisions: npt.NDArray[np.float64],
+        limits: Optional[npt.NDArray[np.float64]] = None,
+    ):
         """Create a HypercubeIterator.
 
         Args:
-            step_functions: A list of functions to calculate the step size for
+            step_functions (list[Callable]): A list of functions to calculate the step size for
                 each dimension to march over.
-            resolution: The highest tree depth. The number of cells along any
-                given dimension will be 2^resolution.
-            limits: A numpy array of shape (2,d) which indicates minimum and
+            sample_space (SparseOccupancyTree): The SparseOccupancyTree which holds the voxels.
+            collisions (npt.NDArray[float]): The collisions of which the null space will be excluded.
+            limits (Optional[npt.NDArray[float]]): A numpy array of shape (2,d) which indicates minimum and
                 maximum values for each dimension. Defaults to [0,1] for every
                 dimension.
         """
         self.dimension = len(step_functions)
         self.step_functions = step_functions
 
-        if limits is None:
-            limits = np.indices((2, self.dimension))[0]
-        self.limits = limits
+        self.limits = limits or np.indices((2, self.dimension))[0]
         self.last_point = None
         self.last_params = np.zeros(self.dimension)
         self.sample_space = sample_space
@@ -168,21 +175,21 @@ class HypercubeIterator(IteratorBase):
             A numpy array of shape (1,D) of normalized parameters used to
             select the parameters from a D-dimensional hypercube. When called
             successively, this will march around the entire hypercube, one
-            point at a time. 
+            point at a time.
         """
         # check if we are done
         if self.current_dim >= self.dimension:
             raise StopIteration
 
         # get all the parameters for this face
-        for params in self._step(self.limits[0,:], 0):
+        for params in self._step(self.limits[0, :], 0):
             if params is not None:
                 return params
 
             # change which face to march over
             if self.current_face == 0:
                 self.current_face = 1
-            elif self.current_dim < self.dimensions:
+            elif self.current_dim < self.dimension:
                 self.current_face = 0
                 self.current_dim += 1
             else:
@@ -202,30 +209,30 @@ class HypercubeIterator(IteratorBase):
             p += 1
 
         # base case: no more dimensions to step:
-        if p == self.dimensions:
+        if p == self.dimension:
             return None
 
-        last_params = self.limits[0,p:]
+        last_params = self.limits[0, p:]
         current_param = last_params[0]
 
         while current_param < self.limits[1, p]:
             # recursive step: run all later dimensions
-            for params in self._step(last_params[:p+1], p + 1):
+            for params in self._step(last_params[: p + 1], p + 1):
                 if params is None:
                     break
                 yield params
 
             # Then step once in this dimension
-            delta = self.step_functions[p](self.sample_space, self.collisions, self.last_point, self.last_params)
+            delta = self.step_functions[p](
+                self.sample_space, self.collisions, self.last_point, self.last_params
+            )
             current_param += delta
             if current_param >= self.limits[1, p]:
                 current_param = self.limits[1, p]
             last_params[0] = current_param
-            params = np.hstack(first_params,last_params)
+            params = np.hstack((first_params, last_params))
             params[self.current_dim] = self.limits[self.current_face, self.current_dim]
             yield params
 
         # finish this dimension
         return None
-
-

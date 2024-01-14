@@ -23,12 +23,24 @@ December 14th, 2023
 
 
 ### Quick start
-_#TODO_: quickstart instructions
+First, complete the [Setup Instructions](#setup-instructions).
+
+The project installs to executables in to the venv, `rrt-star-bench-single-run` and `rrt-star-bench-multi-run` (multiple checkpints same sampler).
+These executables contain a help accesable via `-h`.
+The Nullspace sampler can be enabled using `-NS`.
+
+As an artifact of the sample space updating, it may slow down after around 10 iterations when there is a tradeoff being made between frequently updating the sample space and generating good sample candidates.  After some time however (after around 10% of null space has been covered), it will again speed up as the sample space converges and has already found most of the colliding regions.
+
+It is important to validate a test before doing multi checkpoint runs. This can be done by checking the map using `-vw` and first running the RRT* with the simple sampler (default) to see if it can find a path. (The current world generation allows for some start/goal points on rare occacions, which collide, this causes path finding to fail.)
+
+An example for both Simple and Nullspace sampler.
 ```bash
-python launch_demo.sh
+# Runs a single checkpoint RRT star test with the Simple Sampler, with all visualizations
+rrt-star-bench-single-run -s 41 -i 500 -vw -vp -vs
+# Runs a single checkpoint RRT star test with the Nullspace Sampler, with path and simulation visualizations
+rrt-star-bench-single-run -s 41 -i 500 -NS -vp -vs
 ```
 
-Otherwise see the [Setup Instructions](#setup-instructions).
 
 
 ### Description

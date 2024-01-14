@@ -1,3 +1,4 @@
+"""This submodule contains the definition of the SparseOccupancyTree."""
 from itertools import takewhile
 from typing import Optional, overload
 
@@ -281,8 +282,7 @@ class SparseOccupancyTree:
         # build stack of ids
         # NOTE: the head of this stack is at 0 instead of -1
         id_mask = 2 ** (self.d) - 1
-        id_stack = [(voxel >> self.d * i) & id_mask for i in range(self.res)]
-        # node_id = NodeID(voxel, self.d)
+        id_stack = [(voxel >> self.d * i) & id_mask for i in range(self.res)]  # type: ignore
 
         # Find the closest common ancestor
         i = len(

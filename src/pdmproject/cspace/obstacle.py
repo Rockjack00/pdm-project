@@ -1,3 +1,4 @@
+"""This submodule contains the calculation functions for the Configuration Space obstacle representation."""
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -103,7 +104,7 @@ def calc_ns(collisions, link, params, limits):
     return q
 
 
-def dtheta_step(sample_space: 'SparseOccupancyTree') -> float:
+def dtheta_step(sample_space: "SparseOccupancyTree") -> float:
     """Calculate a fixed step size for theta (used only for link 0).
 
     Args:
@@ -125,9 +126,9 @@ def dtheta_step(sample_space: 'SparseOccupancyTree') -> float:
 def dt_step_l1(
     point: npt.NDArray,
     params: npt.NDArray,
-    sample_space: 'SparseOccupancyTree',
+    sample_space: "SparseOccupancyTree",
     collisions: npt.NDArray,
-) -> float:
+) -> np.float64:
     """Calculate the stepsize with respect to t for Link 1 collisions.
 
     Guarantees a maximum step size of one voxel in each dimension.
@@ -149,13 +150,13 @@ def dt_step_l1(
     dq1 = voxel_size[0]
     dq2 = voxel_size[1]
 
-    return np.min(np.array(dq1, dq2)/(collisions[1, :] -  collisions[0, :]))
+    return np.min(np.array(dq1, dq2) / (collisions[1, :] - collisions[0, :]))
 
 
 def dq3_step_l1(
     point: npt.NDArray,
     params: npt.NDArray,
-    sample_space: 'SparseOccupancyTree',
+    sample_space: "SparseOccupancyTree",
     collisions: npt.NDArray,
 ) -> float:
     """Calculate the stepsize in the q3 axis for Link 1 collisions.
@@ -196,13 +197,13 @@ def dq3_step_l1(
 def dq4_step_l1(
     point: npt.NDArray,
     params: npt.NDArray,
-    sample_space: 'SparseOccupancyTree',
+    sample_space: "SparseOccupancyTree",
     collisions: npt.NDArray,
 ) -> float:
     """Calculate the stepsize in the q4 axis for Link 1 collisions.
 
     Guarantees a maximum step size of one voxel in each dimension.
-    
+
     Args:
         point: The last point which was evaluated.
         params: The last params which were evaluated.
@@ -234,7 +235,7 @@ def dq4_step_l1(
     )
 
 
-def voxel_step(q, sample_space: 'SparseOccupancyTree') -> float:
+def voxel_step(q, sample_space: "SparseOccupancyTree") -> float:
     """Calculate a fixed step size for one voxel in joint q.
 
     Args:

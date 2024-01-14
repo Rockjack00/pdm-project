@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 
 import pdmproject.cspace.obstacle as obs
-from pdmproject.cspace.iterators import CartesianIterator, HypercubeIterator
+from pdmproject.cspace import CartesianIterator
 from pdmproject.cspace.tree import SparseOccupancyTree
 
 from . import SamplerBase
@@ -196,7 +196,7 @@ class NullSpaceSampler(SamplerBase):
             points = obs.calc_ns(
                 collisions, link, params, self.sample_space.limits[:, 2:]
             )
-            marcher.update(points[-1,:])
+            marcher.update(points[-1, :])
 
             if link > 0:
                 midpoints.append(points[len(points) // 2, :])
