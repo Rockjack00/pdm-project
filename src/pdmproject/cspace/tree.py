@@ -490,7 +490,7 @@ class SparseOccupancyTree:
             if isinstance(cur_node, BinaryLeafNode):
                 # current node is a leaf so update voxel individually
                 cur_node.increment(next_idx)
-            elif cur_node.values[next_idx] + content < child_max_content:
+            elif cur_node.values[next_idx] + content < child_max_content: # type: ignore
                 assert isinstance(cur_node, TopologyNode)
                 # add content to ancestor nodes
                 cur_node.values[next_idx] += content
@@ -646,7 +646,7 @@ class SparseOccupancyTree:
         neighbors = []
         for child_idx in children:
             if depth < self.res - 1:
-                child = node_stack[-1][1].children[child_idx]
+                child = node_stack[-1][1].children[child_idx] # type: ignore # This is a TopologyNode
             else:
                 # this is a leaf node so its children must be voxels
                 child = None
