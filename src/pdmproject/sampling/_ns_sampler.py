@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 
 import pdmproject.cspace.obstacle as obs
-from pdmproject.cspace.obstacle import CartesianIterator, HypercubeIterator
+from pdmproject.cspace.iterators import CartesianIterator, HypercubeIterator
 from pdmproject.cspace.tree import SparseOccupancyTree
 
 from . import SamplerBase
@@ -165,17 +165,29 @@ class NullSpaceSampler(SamplerBase):
                 [
                     obs.dtheta_step(self.sample_space),
                     obs.voxel_step(3, self.sample_space),
-                ],  # remove these if not in the tree
+                ],
                 # obs.voxel_step(4, self.sample_space),  # remove these if not in the tree
                 # obs.voxel_step(5, self.sample_space),  # remove these if not in the tree
                 # obs.voxel_step(6, self.sample_space)]  # remove these if not in the tree
                 outer=0,
             )
-        # TODO
-        elif link >= 1:
-            # cry
-            marcher = []
-            # marcher = HypercubeIterator()
+        # elif link >= 1:
+        #     marcher = HypercubeIterator(
+        #             [
+        #                 obs.dt_step_l1,
+        #                 obs.dq3_step_l1,
+        #                 obs.dq4_step_l1,
+        #             ],
+        #             self.sample_space,
+        #             collisions,
+        #             )
+        #     first_point = obs.calc_ns(
+        #         collisions, link, marcher.last_params, self.sample_space.limits[:, 2:]
+        #     )
+        #     marcher.update(first_point)
+        # elif link > 1:
+        else:
+            # TODO: cry, we ran out of memory
             raise NotImplementedError
 
         # using the generator, march over the null space boundary
@@ -184,6 +196,8 @@ class NullSpaceSampler(SamplerBase):
             points = obs.calc_ns(
                 collisions, link, params, self.sample_space.limits[:, 2:]
             )
+            marcher.update(points[-1,:])
+
             if link > 0:
                 midpoints.append(points[len(points) // 2, :])
 
