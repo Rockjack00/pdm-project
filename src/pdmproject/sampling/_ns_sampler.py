@@ -118,6 +118,7 @@ class NullSpaceSampler(SamplerBase):
 
         node_key = self.sample_space._assemble_voxel_key(node_stack)
         bounds = self.sample_space.get_configurations(node_key, depth)
+        print(f'Sampled ({node_key:b}, {depth}) to get ({bounds})')
 
         return np.random.uniform(bounds[0, :], bounds[1, :])
 
@@ -162,10 +163,11 @@ class NullSpaceSampler(SamplerBase):
                 [
                     obs.dtheta_step(self.sample_space),
                     obs.voxel_step(3, self.sample_space),
-                ]  # remove these if not in the tree
+                ],  # remove these if not in the tree
                 # obs.voxel_step(4, self.sample_space),  # remove these if not in the tree
                 # obs.voxel_step(5, self.sample_space),  # remove these if not in the tree
                 # obs.voxel_step(6, self.sample_space)]  # remove these if not in the tree
+                outer=0
             )
         # TODO
         elif link >= 1:
@@ -175,40 +177,45 @@ class NullSpaceSampler(SamplerBase):
             raise NotImplementedError
 
         # using the generator, march over the null space boundary
-        #old_content = self.sample_space._root.sum_values()
+        old_content = self.sample_space._root.sum_values()
         for params in marcher:
             points = obs.calc_ns(
-                collisions, link, params, self.sample_space.limits[:, 2:]
+                    collisions, link, params, self.sample_space.limits[:, 2:]
             )
-            midpoints.append(points[len(points) // 2, :])
+            if link > 0:
+                midpoints.append(points[len(points) // 2, :])
 
             voxels = self.sample_space.locate(points)
             for voxel in voxels:
+                if self.sample_space.is_full(voxel):
+                    continue
                 # use a bigger brush (only in the x and y directions) to make the boundary
                 node_stack = self.sample_space.paint(
                     voxel, directions=0b011011, node_stack=node_stack
                 )
                 # node_stack = self.sample_space.set(voxel, node_stack=node_stack)
+            new_content = self.sample_space._root.sum_values()
 
-           # new_content = self.sample_space._root.sum_values()
-            #t = params[0, 0]
-            # print(f't={t:>4.3f} - Set {new_content - old_content:>3} of {len(points)} voxels. Sample space content: {new_content / self.sample_space.max_content(0):>8.4%}')
-            #old_content = new_content
+            # we already filled this cyclinder
+            if link == 0 and (new_content - old_content) == 0:
+                print('Already filled this cylinder?')
+                return
 
         # TODO: get a smarter interior point or multiple interior points
         # multiple interior points would require load balancing between workers
         if link == 0:
-            interior_point = np.zeros(self.dimension)
+            interior_point = np.ones(self.dimension)
             interior_point[:2] = collisions[0, :2]
-            print(f"[{self.debug_iter}] Obstacle at: {collisions[0,:]}")
         else:
             interior_point = np.average(midpoints, axis=0)
 
         # fill the inside of the obstacle
         self.sample_space.flood_fill(interior_point)
-        print(
-            f"Sample space content: {self.sample_space._root.sum_values() / self.sample_space.max_content(0):.4%}"
-        )
+
+        # debug
+        new_content = self.sample_space._root.sum_values()
+        print(f"[{self.debug_iter}] Obstacle at: {collisions[0,:]},"
+              f" Set {new_content - old_content:>3} voxels. Sample space content: {new_content / self.sample_space.max_content(0):>8.4%}")
         self.debug_iter += 1
-        # if self.debug_iter > 62:
-        #    self.sample_space.plot()
+        if new_content - old_content == 0:
+           breakpoint()
