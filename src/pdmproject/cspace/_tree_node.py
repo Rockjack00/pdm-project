@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -52,7 +52,7 @@ class TopologyNode(SparseVoxelTreeNode):
 
     def sum_values(self) -> int:
         """Get the sum of all values of the children."""
-        return np.sum(self.values) # type: ignore
+        return np.sum(self.values)  # type: ignore
 
     def get_values(self):
         """Get a list of all values of the children."""
@@ -61,7 +61,6 @@ class TopologyNode(SparseVoxelTreeNode):
     def get_child(self, index):
         """Get the child at index."""
         return self.children[index]
-
 
 
 # TODO: define __get__ and __set__ for brackets to modify children

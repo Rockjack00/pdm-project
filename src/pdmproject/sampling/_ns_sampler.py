@@ -150,6 +150,8 @@ class NullSpaceSampler(SamplerBase):
                 the link is in collision. Ignores the second collision if solving
                 for link 0.
         """
+        self.debug_iter += 1
+
         # TODO: parallelize this with multiple workers
         # may require load balancing
 
@@ -168,7 +170,7 @@ class NullSpaceSampler(SamplerBase):
                 # obs.voxel_step(4, self.sample_space),  # remove these if not in the tree
                 # obs.voxel_step(5, self.sample_space),  # remove these if not in the tree
                 # obs.voxel_step(6, self.sample_space)]  # remove these if not in the tree
-                outer=0
+                outer=0,
             )
         # TODO
         elif link >= 1:
@@ -181,7 +183,7 @@ class NullSpaceSampler(SamplerBase):
         old_content = self.sample_space._root.sum_values()
         for params in marcher:
             points = obs.calc_ns(
-                    collisions, link, params, self.sample_space.limits[:, 2:]
+                collisions, link, params, self.sample_space.limits[:, 2:]
             )
             if link > 0:
                 midpoints.append(points[len(points) // 2, :])
@@ -216,8 +218,9 @@ class NullSpaceSampler(SamplerBase):
         # debug
         if 1:  # FIXME:DEBUG:REMOVE
             new_content = self.sample_space._root.sum_values()
-            print(f"[{self.debug_iter}] Obstacle at: {collisions[0,:]},"
-                  f" Set {new_content - old_content:>3} voxels. Sample space content: {new_content / self.sample_space.max_content(0):>8.4%}")
-            self.debug_iter += 1
+            print(
+                f"[{self.debug_iter}] Obstacle at: {collisions[0,:]},"
+                f" Set {new_content - old_content:>3} voxels. Sample space content: {new_content / self.sample_space.max_content(0):>8.4%}"
+            )
             if new_content - old_content == 0:
-               breakpoint()
+                breakpoint()

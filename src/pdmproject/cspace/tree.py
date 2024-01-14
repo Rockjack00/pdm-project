@@ -1,4 +1,3 @@
-import functools
 from dataclasses import dataclass
 from itertools import takewhile
 from typing import Optional, overload
@@ -389,7 +388,7 @@ class SparseOccupancyTree:
             if parent_idx < 0:
                 parent = self._root
             else:
-                parent = node_stack[parent_idx][1]
+                parent: TopologyNode = node_stack[parent_idx][1]  # type: ignore
             is_set = parent.values[node_stack[parent_idx + 1][0]] >= self.max_content(
                 depth
             )
@@ -644,12 +643,9 @@ class SparseOccupancyTree:
             direction >>= self.d
             children = np.array([i for i in range(2**self.d) if (i & direction) > 0])
 
-        # if depth == 4:
-        #    breakpoint()
-
         neighbors = []
         for child_idx in children:
-            if depth < 4:
+            if depth < self.res - 1:
                 child = node_stack[-1][1].children[child_idx]
             else:
                 # this is a leaf node so its children must be voxels
@@ -692,7 +688,6 @@ class NodeID:
     id: np.int64
     d: int
 
-    @functools.cache
     def __getitem__(self, i) -> bool:
         return (self.id >> self.d * i) & (2 ** (self.d) - 1)
 

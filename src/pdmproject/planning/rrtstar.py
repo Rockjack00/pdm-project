@@ -61,7 +61,9 @@ class RRTStar:
         # Variables for keeping track of the metrics
         self._num_iter_till_first_path: Optional[int] = None
         self._explored_nodes_till_first_path: Optional[int] = None
+        self._collision_count_till_first_path: Optional[int] = None
         self._collision_count: int = 0
+        self._rejected_nodes: int = 0
         self._planned: int = (
             0  # The amount of time plan has been used on this RRTStar instance.
         )
@@ -70,14 +72,14 @@ class RRTStar:
         self,
         pose: npt.NDArray[np.float64],
         perform_callback: bool = True,
-        count_collisions: bool = False,
+        count_reject: bool = False,
     ) -> bool:
         """Check if the specified pose is colliding.
 
         Args:
             pose (np.ndarray[np.float64]): The pose of the robot in C-space, which will be checked.
             perform_callback (bool, optional): If the sampler callback should be called. Defaults to True.
-            count_collisions (bool, optional): If the amount of rejected nodes should be added up. Defaults to False.
+            count_reject (bool, optional): If the amount of rejected nodes should be added up. Defaults to False.
 
         Returns:
             bool: True for collision, False otherwise
@@ -85,10 +87,11 @@ class RRTStar:
         is_colliding = self.robot.check_if_colliding(pose)
 
         if perform_callback and is_colliding:
+            self._collision_count += 1
             self.sampler.callback(pose, self.robot)
 
-        if count_collisions and is_colliding:
-            self._collision_count += 1
+        if count_reject and is_colliding:
+            self._rejected_nodes += 1
 
         return is_colliding
 
@@ -158,7 +161,7 @@ class RRTStar:
         from_node: Node,
         to_node: Node,
         perform_callback: bool = True,
-        count_collisions: bool = False,
+        count_reject: bool = False,
     ) -> bool:
         """Check for collision between two nodes using step size from RRTStar class instance.
 
@@ -166,7 +169,7 @@ class RRTStar:
             from_node (Node): starting node
             to_node (Node): end node
             perform_callback (bool, optional): If the sampler callback should be called. Defaults to None
-            count_collisions (bool, optional): If the amount of rejected nodes should be added up. Defaults to False.
+            count_reject (bool, optional): If the amount of rejected nodes should be added up. Defaults to False.
 
         Returns:
             bool: True for collision, False otherwise
@@ -186,7 +189,7 @@ class RRTStar:
             if self.collision_checker(
                 node.get_7d_point(),
                 perform_callback=perform_callback,
-                count_collisions=count_collisions,
+                count_reject=count_reject,
             ):
                 return True  # Collision on path
 
@@ -229,7 +232,7 @@ class RRTStar:
             new_node = self.sampler.get_node_sample()
 
             if self.collision_checker(
-                new_node.get_7d_point(), perform_callback=True, count_collisions=True
+                new_node.get_7d_point(), perform_callback=True, count_reject=True
             ):
                 # The callback gets called by the collision checking function.
                 continue
@@ -257,7 +260,7 @@ class RRTStar:
                 from_node=min_cost_node,
                 to_node=new_node,
                 perform_callback=True,
-                count_collisions=True,
+                count_reject=True,
             ):
                 # The callback gets called by the collision checking function.
                 continue
@@ -271,6 +274,7 @@ class RRTStar:
                         i + 1 + self.max_iter * (self._planned - 1)
                     )
                     self._explored_nodes_till_first_path = len(self.node_list)
+                    self._collision_count_till_first_path = self._collision_count
                 self.rewire(new_node)
                 continue
 
@@ -435,13 +439,31 @@ class RRTStar:
         return self.goal.parent is not None
 
     @property
-    def collision_count(self) -> int:
-        """The amount collisions found during the adding of new Nodes.
+    def rejected_nodes(self) -> int:
+        """The amount rejected nodes found during the adding of new Nodes.
 
         Returns:
-            int: The new Node collision count.
+            int: The rejected Node count.
+        """
+        return self._rejected_nodes
+
+    @property
+    def collision_count(self) -> int:
+        """The amount of collision found during planning.
+
+        Returns:
+            int: The collision count.
         """
         return self._collision_count
+
+    @property
+    def collision_count_till_first_path(self) -> Optional[int]:
+        """The amount of collision found during planning at the time first valid path was found.
+
+        Returns:
+            Optional[int]: The collision count at the time first valid path was found, otherwise None.
+        """
+        return self._collision_count_till_first_path
 
     @property
     def path_length(self) -> Optional[float]:
